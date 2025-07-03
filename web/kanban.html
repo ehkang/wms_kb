@@ -951,10 +951,16 @@
                             // 子设备不在独立监控中，处理父设备的子设备数据
                             device.childrenDevice.forEach((child, index) => {
                                 const childDeviceCode = child.code || `${deviceCode}_child_${index}`;
+                                console.log(`检查子设备 ${childDeviceCode} 托盘信息:`, {
+                                    palletCode: child.palletCode,
+                                    hasValue: !!child.palletCode,
+                                    notZero: child.palletCode != '0',
+                                    notEmpty: child.palletCode?.toString().trim() !== ''
+                                });
                                 // 子设备只检查托盘号有效性，不检查工作状态
                                 if (child.palletCode && 
                                     child.palletCode != '0' && 
-                                    child.palletCode.toString().length > 2) {
+                                    child.palletCode.toString().trim() !== '') {
                                     
                                     deviceTrayMap.set(childDeviceCode, {
                                         trayCode: child.palletCode.toString(),
@@ -970,18 +976,31 @@
                         }
                     } else {
                         // 没有子设备，看主设备本身
+                        // 检查是否是子设备（以Tran开头的设备认为是子设备，不检查工作状态）
+                        const isChildDevice = deviceCode.startsWith('Tran');
+                        
                         if (device.palletCode && 
                             device.palletCode != '0' && 
-                            device.palletCode.toString().length > 2 &&
-                            device.workStatus != null && device.workStatus !== 0) {
+                            device.palletCode.toString().trim() !== '') {
                             
-                            deviceTrayMap.set(deviceCode, {
-                                trayCode: device.palletCode.toString(),
-                                deviceName: device.name || deviceCode,
-                                location: device.name || deviceCode,
-                                timestamp: ++timestampCounter
-                            });
-                            console.log(`设备 ${deviceCode} 有托盘 ${device.palletCode}，工作状态: ${device.workStatus}`);
+                            // 如果是子设备，不检查工作状态；如果是主设备，检查工作状态
+                            const shouldInclude = isChildDevice || (device.workStatus != null && device.workStatus !== 0);
+                            
+                            if (shouldInclude) {
+                                deviceTrayMap.set(deviceCode, {
+                                    trayCode: device.palletCode.toString(),
+                                    deviceName: device.name || deviceCode,
+                                    location: device.name || deviceCode,
+                                    timestamp: ++timestampCounter
+                                });
+                                console.log(`设备 ${deviceCode} 有托盘 ${device.palletCode}${isChildDevice ? '（子设备）' : '，工作状态: ' + device.workStatus}`);
+                            } else {
+                                console.log(`设备 ${deviceCode} 有托盘 ${device.palletCode} 但工作状态为 ${device.workStatus}，跳过`);
+                            }
+                        } else {
+                            if (isChildDevice) {
+                                console.log(`子设备 ${deviceCode} 无有效托盘: ${device.palletCode}`);
+                            }
                         }
                     }
                 }
@@ -1185,7 +1204,7 @@
                     newInfo.childrenDevice.forEach(child => {
                         if (this.watchStationNos.includes(child.code)) {
                             devices[child.code] = child;
-                            console.log(`更新子设备 ${child.code} 信息`);
+                            console.log(`更新子设备 ${child.code} 信息`,child.palletCode  );
                             
                             // 更新站台名称
                             if (child.code === this.localStationNo) {
@@ -1205,7 +1224,11 @@
                 this.setState({ devices });
                 
                 // 更新设备托盘字典
+                console.log('实时更新 - 开始更新设备托盘字典');
+                console.log('当前监控设备列表:', this.watchStationNos);
+                console.log('当前设备数量:', Object.keys(this.state.devices).length);
                 const { deviceTrayMap, operationMode } = this.updateDeviceTrayMap();
+                console.log('实时更新 - 托盘字典更新完成，托盘数量:', deviceTrayMap.size);
                 
                 // 从字典中提取托盘列表用于展示，并按托盘编码去重（优先显示当前站台）
                 const trayCodeMap = new Map();

@@ -942,25 +942,34 @@
 
                     // 如果有子设备，只看子设备
                     if (device.childrenDevice && device.childrenDevice.length > 0) {
-                        device.childrenDevice.forEach((child, index) => {
-                            const childDeviceCode = child.code || `${deviceCode}_child_${index}`;
-                            // 检查托盘号有效性，工作状态为0或undefined时不考虑托盘
-                            if (child.palletCode && 
-                                child.palletCode != '0' && 
-                                child.palletCode.toString().length > 2 &&
-                                child.workStatus != null && child.workStatus !== 0) {
-                                
-                                deviceTrayMap.set(childDeviceCode, {
-                                    trayCode: child.palletCode.toString(),
-                                    deviceName: child.name || device.name || deviceCode,
-                                    location: `${device.name || deviceCode}-位置${index + 1}`,
-                                    timestamp: ++timestampCounter // 每个设备递增时间戳
-                                });
-                                console.log(`设备 ${childDeviceCode} 有托盘 ${child.palletCode}，工作状态: ${child.workStatus}`);
-                            }
-                        });
+                        // 检查子设备是否已经作为独立设备监控，如果是则跳过父设备的子设备数据
+                        const hasChildrenInMonitoring = device.childrenDevice.some(child => 
+                            this.watchStationNos.includes(child.code)
+                        );
+                        
+                        if (!hasChildrenInMonitoring) {
+                            // 子设备不在独立监控中，处理父设备的子设备数据
+                            device.childrenDevice.forEach((child, index) => {
+                                const childDeviceCode = child.code || `${deviceCode}_child_${index}`;
+                                // 子设备只检查托盘号有效性，不检查工作状态
+                                if (child.palletCode && 
+                                    child.palletCode != '0' && 
+                                    child.palletCode.toString().length > 2) {
+                                    
+                                    deviceTrayMap.set(childDeviceCode, {
+                                        trayCode: child.palletCode.toString(),
+                                        deviceName: child.name || device.name || deviceCode,
+                                        location: `${device.name || deviceCode}-位置${index + 1}`,
+                                        timestamp: ++timestampCounter
+                                    });
+                                    console.log(`子设备 ${childDeviceCode} 有托盘 ${child.palletCode}`);
+                                }
+                            });
+                        } else {
+                            console.log(`父设备 ${deviceCode} 的子设备已独立监控，跳过父设备的子设备数据`);
+                        }
                     } else {
-                        // 没有子设备，看主设备，工作状态为0或undefined时不考虑托盘
+                        // 没有子设备，看主设备本身
                         if (device.palletCode && 
                             device.palletCode != '0' && 
                             device.palletCode.toString().length > 2 &&
@@ -970,12 +979,11 @@
                                 trayCode: device.palletCode.toString(),
                                 deviceName: device.name || deviceCode,
                                 location: device.name || deviceCode,
-                                timestamp: ++timestampCounter // 每个设备递增时间戳
+                                timestamp: ++timestampCounter
                             });
                             console.log(`设备 ${deviceCode} 有托盘 ${device.palletCode}，工作状态: ${device.workStatus}`);
                         }
                     }
-
                 }
 
                 return { deviceTrayMap, operationMode };

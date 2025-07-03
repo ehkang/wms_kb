@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WMS Dashboard - WASM版本</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- WASM支持脚本 -->
+    <script src="wasm_exec.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #00d4ff;
+            --secondary-color: #7c4dff;
+            --accent-color: #00bfa5;
+            --surface-color: #0a0a0a;
+            --surface-elevated: #1a1a1a;
+            --surface-glass: rgba(255, 255, 255, 0.02);
+            --on-surface-color: #ffffff;
+            --on-surface-muted: #a0a0a0;
+            --error-color: #ff5252;
+            --success-color: #00e676;
+            --warning-color: #ffc107;
+            --card-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-color: rgba(0, 0, 0, 0.3);
+            --glow-color: rgba(0, 212, 255, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'SF Pro Display', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(124, 77, 255, 0.1) 0%, transparent 50%),
+                        var(--surface-color);
+            color: var(--on-surface-color);
+            overflow: hidden;
+            height: 100vh;
+            font-weight: 400;
+            letter-spacing: -0.01em;
+        }
+
+        /* WASM加载状态 */
+        .wasm-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--surface-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+
+        .wasm-loading.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .wasm-loader {
+            width: 60px;
+            height: 60px;
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .wasm-status {
+            color: var(--on-surface-muted);
+            font-size: 14px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .wasm-error {
+            color: var(--error-color);
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .dashboard {
+            position: relative;
+            z-index: 1;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            height: 72px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            box-shadow: 0 8px 32px var(--shadow-color);
+            position: relative;
+        }
+
+        .header-title {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+        }
+
+        .wasm-badge {
+            background: var(--surface-glass);
+            backdrop-filter: blur(10px);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 10px;
+            color: var(--accent-color);
+            border: 1px solid var(--accent-color);
+            margin-left: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .content {
+            flex: 1;
+            display: flex;
+            height: calc(100vh - 72px);
+            gap: 1px;
+        }
+
+        .status-panel {
+            width: 300px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-color);
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .status-section {
+            margin-bottom: 32px;
+        }
+
+        .status-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-item {
+            background: var(--surface-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .status-item:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 16px var(--glow-color);
+        }
+
+        .status-label {
+            font-size: 12px;
+            color: var(--on-surface-muted);
+            margin-bottom: 4px;
+        }
+
+        .status-value {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--on-surface-color);
+        }
+
+        .main-area {
+            flex: 1;
+            background: var(--surface-color);
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .test-section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
+        }
+
+        .test-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 16px;
+        }
+
+        .test-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: var(--surface-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            color: var(--on-surface-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 16px var(--glow-color);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .test-result {
+            background: var(--surface-elevated);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            color: var(--on-surface-muted);
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 12px;
+            color: var(--on-surface-muted);
+            margin-bottom: 4px;
+        }
+
+        .input-field {
+            width: 100%;
+            background: var(--surface-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--on-surface-color);
+            font-size: 14px;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px var(--glow-color);
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 2px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- WASM加载界面 -->
+    <div class="wasm-loading" id="wasm-loading">
+        <div class="wasm-loader"></div>
+        <div class="wasm-status">
+            <div>正在加载 Go WebAssembly 模块...</div>
+            <div id="wasm-progress">初始化中</div>
+            <div class="wasm-error" id="wasm-error" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- 主应用界面 -->
+    <div class="dashboard" id="app" style="display: none;">
+        <header class="header">
+            <div>
+                <span class="header-title">WMS Dashboard</span>
+                <span class="wasm-badge">WASM</span>
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- 状态面板 -->
+            <aside class="status-panel">
+                <div class="status-section">
+                    <div class="status-title">WASM 状态</div>
+                    <div class="status-item">
+                        <div class="status-label">模块状态</div>
+                        <div class="status-value" id="wasm-module-status">加载中...</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">API可用性</div>
+                        <div class="status-value" id="api-availability">检测中...</div>
+                    </div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title">连接状态</div>
+                    <div class="status-item">
+                        <div class="status-label">WMS API</div>
+                        <div class="status-value" id="wms-connection">未连接</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">WCS API</div>
+                        <div class="status-value" id="wcs-connection">未连接</div>
+                    </div>
+                </div>
+
+                <div class="status-section">
+                    <div class="status-title">性能指标</div>
+                    <div class="status-item">
+                        <div class="status-label">请求耗时</div>
+                        <div class="status-value" id="request-time">-</div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">成功率</div>
+                        <div class="status-value" id="success-rate">-</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 主区域 -->
+            <main class="main-area">
+                <!-- 设备状态测试 -->
+                <section class="test-section">
+                    <h3 class="test-title">🔧 设备状态测试</h3>
+                    <div class="input-group">
+                        <label class="input-label">设备代码</label>
+                        <input type="text" class="input-field" id="device-code" value="Crn2002" placeholder="输入设备代码">
+                    </div>
+                    <div class="test-controls">
+                        <button class="btn" onclick="testDeviceStatus()">获取设备状态</button>
+                        <button class="btn" onclick="clearResult('device-result')">清空结果</button>
+                    </div>
+                    <div class="test-result" id="device-result">点击"获取设备状态"开始测试...</div>
+                </section>
+
+                <!-- 容器货物测试 -->
+                <section class="test-section">
+                    <h3 class="test-title">📦 容器货物测试</h3>
+                    <div class="input-group">
+                        <label class="input-label">容器代码</label>
+                        <input type="text" class="input-field" id="container-code" value="" placeholder="输入容器代码">
+                    </div>
+                    <div class="test-controls">
+                        <button class="btn" onclick="testContainerGoods()">获取容器货物</button>
+                        <button class="btn" onclick="clearResult('container-result')">清空结果</button>
+                    </div>
+                    <div class="test-result" id="container-result">点击"获取容器货物"开始测试...</div>
+                </section>
+
+                <!-- 自定义API测试 -->
+                <section class="test-section">
+                    <h3 class="test-title">🌐 自定义API测试</h3>
+                    <div class="input-group">
+                        <label class="input-label">请求方法</label>
+                        <select class="input-field" id="api-method">
+                            <option value="GET">GET</option>
+                            <option value="POST">POST</option>
+                            <option value="PUT">PUT</option>
+                            <option value="DELETE">DELETE</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">完整URL</label>
+                        <input type="text" class="input-field" id="api-url" value="http://10.20.88.14:8009/api/WCS/getDevice/Crn2001" placeholder="输入完整的API URL">
+                    </div>
+                    <div class="input-group">
+                        <label class="input-label">请求体 (JSON格式，可选)</label>
+                        <textarea class="input-field" id="api-data" rows="3" placeholder='{"key": "value"}'></textarea>
+                    </div>
+                    <div class="test-controls">
+                        <button class="btn" onclick="testCustomAPI()">发送请求</button>
+                        <button class="btn" onclick="clearResult('api-result')">清空结果</button>
+                    </div>
+                    <div class="test-result" id="api-result">配置请求参数后点击"发送请求"...</div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let wasmInitialized = false;
+        let requestCount = 0;
+        let successCount = 0;
+
+        // WASM初始化
+        async function initWASM() {
+            const progressEl = document.getElementById('wasm-progress');
+            const errorEl = document.getElementById('wasm-error');
+            
+            try {
+                progressEl.textContent = '下载WASM模块...';
+                
+                // 加载Go WASM模块
+                const go = new Go();
+                const result = await WebAssembly.instantiateStreaming(fetch('main.wasm'), go.importObject);
+                
+                progressEl.textContent = '启动WASM模块...';
+                
+                // 运行WASM模块
+                go.run(result.instance);
+                
+                progressEl.textContent = '验证API函数...';
+                
+                // 验证WASM函数是否可用
+                if (typeof window.goWasmRequest === 'function' && 
+                    typeof window.goWasmGetDeviceStatus === 'function' && 
+                    typeof window.goWasmGetContainerGoods === 'function') {
+                    
+                    wasmInitialized = true;
+                    progressEl.textContent = 'WASM模块初始化完成！';
+                    
+                    // 隐藏加载界面，显示主应用
+                    setTimeout(() => {
+                        document.getElementById('wasm-loading').classList.add('hidden');
+                        document.getElementById('app').style.display = 'flex';
+                        updateStatus();
+                    }, 500);
+                } else {
+                    throw new Error('WASM函数未正确导出');
+                }
+                
+            } catch (error) {
+                console.error('WASM初始化失败:', error);
+                progressEl.textContent = 'WASM模块初始化失败';
+                errorEl.textContent = `错误: ${error.message}`;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        // 更新状态显示
+        function updateStatus() {
+            document.getElementById('wasm-module-status').textContent = wasmInitialized ? '✅ 已加载' : '❌ 未加载';
+            document.getElementById('api-availability').textContent = wasmInitialized ? '✅ 可用' : '❌ 不可用';
+            
+            // 更新成功率
+            if (requestCount > 0) {
+                const rate = ((successCount / requestCount) * 100).toFixed(1);
+                document.getElementById('success-rate').textContent = `${rate}%`;
+            }
+        }
+
+        // 测试设备状态
+        async function testDeviceStatus() {
+            if (!wasmInitialized) {
+                alert('WASM模块未初始化');
+                return;
+            }
+
+            const deviceCode = document.getElementById('device-code').value.trim();
+            if (!deviceCode) {
+                alert('请输入设备代码');
+                return;
+            }
+
+            const resultEl = document.getElementById('device-result');
+            resultEl.textContent = '正在获取设备状态...';
+            
+            const startTime = performance.now();
+            requestCount++;
+
+            try {
+                const result = window.goWasmGetDeviceStatus(deviceCode);
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                
+                document.getElementById('request-time').textContent = `${duration}ms`;
+                
+                if (result.success) {
+                    successCount++;
+                    document.getElementById('wcs-connection').textContent = '✅ 已连接';
+                } else {
+                    document.getElementById('wcs-connection').textContent = '❌ 连接失败';
+                }
+                
+                resultEl.textContent = JSON.stringify(result, null, 2);
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                document.getElementById('request-time').textContent = `${duration}ms`;
+                document.getElementById('wcs-connection').textContent = '❌ 异常';
+                
+                resultEl.textContent = `错误: ${error.message}`;
+            }
+            
+            updateStatus();
+        }
+
+        // 测试容器货物
+        async function testContainerGoods() {
+            if (!wasmInitialized) {
+                alert('WASM模块未初始化');
+                return;
+            }
+
+            const containerCode = document.getElementById('container-code').value.trim();
+            if (!containerCode) {
+                alert('请输入容器代码');
+                return;
+            }
+
+            const resultEl = document.getElementById('container-result');
+            resultEl.textContent = '正在获取容器货物...';
+            
+            const startTime = performance.now();
+            requestCount++;
+
+            try {
+                const result = window.goWasmGetContainerGoods(containerCode);
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                
+                document.getElementById('request-time').textContent = `${duration}ms`;
+                
+                if (result.success) {
+                    successCount++;
+                    document.getElementById('wms-connection').textContent = '✅ 已连接';
+                } else {
+                    document.getElementById('wms-connection').textContent = '❌ 连接失败';
+                }
+                
+                resultEl.textContent = JSON.stringify(result, null, 2);
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                document.getElementById('request-time').textContent = `${duration}ms`;
+                document.getElementById('wms-connection').textContent = '❌ 异常';
+                
+                resultEl.textContent = `错误: ${error.message}`;
+            }
+            
+            updateStatus();
+        }
+
+        // 测试自定义API
+        async function testCustomAPI() {
+            if (!wasmInitialized) {
+                alert('WASM模块未初始化');
+                return;
+            }
+
+            const method = document.getElementById('api-method').value;
+            const url = document.getElementById('api-url').value.trim();
+            const dataText = document.getElementById('api-data').value.trim();
+
+            if (!url) {
+                alert('请输入API URL');
+                return;
+            }
+
+            const resultEl = document.getElementById('api-result');
+            resultEl.textContent = '正在发送请求...';
+            
+            const startTime = performance.now();
+            requestCount++;
+
+            try {
+                let data = null;
+                if (dataText) {
+                    try {
+                        data = JSON.parse(dataText);
+                    } catch (e) {
+                        data = dataText; // 如果不是JSON，作为字符串发送
+                    }
+                }
+
+                const result = window.goWasmRequest(method, url, data);
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                
+                document.getElementById('request-time').textContent = `${duration}ms`;
+                
+                if (result.success) {
+                    successCount++;
+                }
+                
+                resultEl.textContent = JSON.stringify(result, null, 2);
+                
+            } catch (error) {
+                const endTime = performance.now();
+                const duration = (endTime - startTime).toFixed(2);
+                document.getElementById('request-time').textContent = `${duration}ms`;
+                
+                resultEl.textContent = `错误: ${error.message}`;
+            }
+            
+            updateStatus();
+        }
+
+        // 清空结果
+        function clearResult(elementId) {
+            document.getElementById(elementId).textContent = '结果已清空...';
+        }
+
+        // 页面加载完成后初始化WASM
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🚀 开始初始化 WMS WASM Dashboard...');
+            initWASM();
+        });
+    </script>
+</body>
+</html>

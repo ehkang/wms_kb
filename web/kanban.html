@@ -104,12 +104,29 @@
             margin-right: 4px;
         }
 
-        .operation-mode {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
+        .coordinates-display {
+            display: flex;
+            gap: 12px;
+        }
+
+        .coordinate-item {
+            background: rgba(255,255,255,0.1);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
             backdrop-filter: blur(10px);
+            min-width: 120px;
+        }
+
+        .coordinate-label {
+            font-weight: 500;
+            margin-bottom: 2px;
+            color: #ccc;
+        }
+
+        .coordinate-value {
+            font-weight: bold;
+            color: #fff;
         }
 
         .status-indicator {
@@ -430,7 +447,20 @@
                     <div class="status-dot" id="wcs-dot"></div>
                     <span id="wcs-text">连接中</span>
                 </div>
-                <div class="operation-mode" id="operation-mode">出入库</div>
+                <div class="coordinates-display">
+                    <div class="coordinate-item" id="crn2001-coords">
+                        <div class="coordinate-label" id="crn2001-label">堆埛机001:</div>
+                        <div class="coordinate-value" id="crn2001-value">连接中</div>
+                    </div>
+                    <div class="coordinate-item" id="crn2002-coords">
+                        <div class="coordinate-label" id="crn2002-label">堆埛机002:</div>
+                        <div class="coordinate-value" id="crn2002-value">连接中</div>
+                    </div>
+                    <div class="coordinate-item" id="rgv01-coords">
+                        <div class="coordinate-label" id="rgv01-label">穿梭车:</div>
+                        <div class="coordinate-value" id="rgv01-value">连接中</div>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -439,7 +469,7 @@
             <!-- 托盘信息 -->
             <aside class="tray-info">
                 <div class="tray-title">
-                    当前站台托盘 (<span id="tray-count">0</span>)
+                    在途托盘列表 (<span id="tray-count">0</span>)
                 </div>
                 <div class="tray-list" id="tray-list">
                     <div class="loading">加载中...</div>
@@ -487,6 +517,7 @@
                 this.listeners = new Set();
                 this.localStationNo = "Tran3001";
                 this.watchDeviceCodes = ["Crn2002", "TranLine3000"];
+                this.coordinateDevices = ["Crn2001", "Crn2002", "RGV01"]; // 需要显示坐标的设备
                 this.watchStationNos = [];
                 
                 this.dicOperationMode = {
@@ -563,8 +594,11 @@
             // 初始化连接
             async initializeConnection() {
                 try {
+                    console.log('开始初始化连接...');
                     await this.initGetDeviceInfo();
+                    console.log('设备信息初始化完成');
                     await this.initSignalR();
+                    console.log('SignalR初始化完成');
                     this.setState({ 
                         wmsConnectionStatus: 'connected',
                         wcsConnectionStatus: 'connected'
@@ -576,6 +610,11 @@
                         wcsConnectionStatus: 'error',
                         errorMessage: `连接失败: ${error.message}`
                     });
+                    // 即使出错，也要尝试继续初始化其他部分
+                    setTimeout(() => {
+                        console.log('尝试重新初始化...');
+                        this.initGetDeviceInfo().catch(console.error);
+                    }, 3000);
                 }
             }
 
@@ -624,16 +663,31 @@
 
             // 初始化设备信息
             async initGetDeviceInfo() {
+                console.log('开始初始化设备信息...');
                 this.setState({ 
                     wmsConnectionStatus: 'connecting',
                     wcsConnectionStatus: 'connecting'
                 });
                 
-                for (const deviceCode of this.watchDeviceCodes) {
+                // 确保 coordinateDevices 存在
+                if (!this.coordinateDevices) {
+                    this.coordinateDevices = ["Crn2001", "Crn2002", "RGV01"];
+                    console.log('重新初始化 coordinateDevices');
+                }
+                
+                // 初始化监控设备
+                const allDeviceCodes = [...this.watchDeviceCodes, ...this.coordinateDevices];
+                const uniqueDeviceCodes = [...new Set(allDeviceCodes)];
+                console.log('将要初始化的设备:', uniqueDeviceCodes);
+                
+                let successCount = 0;
+                for (const deviceCode of uniqueDeviceCodes) {
                     try {
+                        console.log(`正在初始化设备: ${deviceCode}`);
                         const deviceInfo = await this.getDeviceStatus(deviceCode);
                         
                         if (deviceInfo.childrenDevice && deviceInfo.childrenDevice.length > 0) {
+                            console.log(`设备 ${deviceCode} 有 ${deviceInfo.childrenDevice.length} 个子设备`);
                             deviceInfo.childrenDevice.forEach(item => {
                                 this.watchStationNos.push(item.code);
                                 const devices = { ...this.state.devices };
@@ -646,6 +700,7 @@
                                 }
                             });
                         } else {
+                            console.log(`设备 ${deviceCode} 无子设备，直接添加`);
                             this.watchStationNos.push(deviceInfo.code);
                             const devices = { ...this.state.devices };
                             devices[deviceInfo.code] = deviceInfo;
@@ -656,10 +711,14 @@
                                 this.setState({ stationName: deviceInfo.name || deviceInfo.code });
                             }
                         }
+                        successCount++;
                     } catch (error) {
                         console.error(`设备 ${deviceCode} 初始化失败:`, error);
                     }
                 }
+                
+                console.log(`设备初始化完成，成功: ${successCount}/${uniqueDeviceCodes.length}`);
+                console.log('当前监控设备列表:', this.watchStationNos);
                 
                 await this.handleInfo();
             }
@@ -682,38 +741,36 @@
                     if (device.childrenDevice && device.childrenDevice.length > 0) {
                         device.childrenDevice.forEach((child, index) => {
                             const childDeviceCode = child.code || `${deviceCode}_child_${index}`;
-                            if (child.palletCode && child.palletCode != '0' && child.palletCode.toString().length > 2) {
+                            // 检查托盘号有效性，工作状态为0时不考虑托盘
+                            if (child.palletCode && 
+                                child.palletCode != '0' && 
+                                child.palletCode.toString().length > 2 &&
+                                child.workStatus !== 0) {
+                                
                                 deviceTrayMap.set(childDeviceCode, {
                                     trayCode: child.palletCode.toString(),
                                     deviceName: child.name || device.name || deviceCode,
                                     location: `${device.name || deviceCode}-位置${index + 1}`
                                 });
+                                console.log(`设备 ${childDeviceCode} 有托盘 ${child.palletCode}，工作状态: ${child.workStatus}`);
                             }
                         });
                     } else {
-                        // 没有子设备，看主设备
-                        if (device.palletCode && device.palletCode != '0' && device.palletCode.toString().length > 2) {
+                        // 没有子设备，看主设备，工作状态为0时不考虑托盘
+                        if (device.palletCode && 
+                            device.palletCode != '0' && 
+                            device.palletCode.toString().length > 2 &&
+                            device.workStatus !== 0) {
+                            
                             deviceTrayMap.set(deviceCode, {
                                 trayCode: device.palletCode.toString(),
                                 deviceName: device.name || deviceCode,
                                 location: device.name || deviceCode
                             });
+                            console.log(`设备 ${deviceCode} 有托盘 ${device.palletCode}，工作状态: ${device.workStatus}`);
                         }
                     }
 
-                    // 附加：收集命令中的托盘（作为额外信息）
-                    if (device.commands && device.commands.length > 0) {
-                        device.commands.forEach((item, cmdIndex) => {
-                            if (item.pallteCode && item.pallteCode != '0' && item.pallteCode.toString().length > 2) {
-                                const commandKey = `${deviceCode}_cmd_${cmdIndex}`;
-                                deviceTrayMap.set(commandKey, {
-                                    trayCode: item.pallteCode.toString(),
-                                    deviceName: device.name || deviceCode,
-                                    location: `${device.name || deviceCode}-命令${cmdIndex + 1}`
-                                });
-                            }
-                        });
-                    }
                 }
 
                 return { deviceTrayMap, operationMode };
@@ -851,9 +908,15 @@
                 const devices = { ...this.state.devices };
                 let shouldUpdateCurrentStation = false;
                 
-                // 更新设备信息
-                if (this.watchStationNos.includes(deviceNo)) {
+                // 确保 coordinateDevices 存在
+                if (!this.coordinateDevices) {
+                    this.coordinateDevices = ["Crn2001", "Crn2002", "RGV01"];
+                }
+                
+                // 更新设备信息（包括监控设备和坐标设备）
+                if (this.watchStationNos.includes(deviceNo) || this.coordinateDevices.includes(deviceNo)) {
                     devices[deviceNo] = newInfo;
+                    console.log(`更新设备 ${deviceNo} 信息`);
                     
                     // 更新站台名称
                     if (deviceNo === this.localStationNo) {
@@ -867,6 +930,7 @@
                     newInfo.childrenDevice.forEach(child => {
                         if (this.watchStationNos.includes(child.code)) {
                             devices[child.code] = child;
+                            console.log(`更新子设备 ${child.code} 信息`);
                             
                             // 更新站台名称
                             if (child.code === this.localStationNo) {
@@ -875,6 +939,12 @@
                             }
                         }
                     });
+                }
+                
+                // 如果这个设备不在监控列表中，但是在坐标设备列表中，也要添加到监控列表
+                if (!this.watchStationNos.includes(deviceNo) && this.coordinateDevices.includes(deviceNo)) {
+                    this.watchStationNos.push(deviceNo);
+                    console.log(`将坐标设备 ${deviceNo} 添加到监控列表`);
                 }
                 
                 this.setState({ devices });
@@ -946,13 +1016,18 @@
                 return {
                     header: document.getElementById('header'),
                     headerTitle: document.getElementById('header-title'),
-                    operationMode: document.getElementById('operation-mode'),
                     wmsStatus: document.getElementById('wms-status'),
                     wmsDot: document.getElementById('wms-dot'),
                     wmsText: document.getElementById('wms-text'),
                     wcsStatus: document.getElementById('wcs-status'),
                     wcsDot: document.getElementById('wcs-dot'),
                     wcsText: document.getElementById('wcs-text'),
+                    crn2001Label: document.getElementById('crn2001-label'),
+                    crn2001Value: document.getElementById('crn2001-value'),
+                    crn2002Label: document.getElementById('crn2002-label'),
+                    crn2002Value: document.getElementById('crn2002-value'),
+                    rgv01Label: document.getElementById('rgv01-label'),
+                    rgv01Value: document.getElementById('rgv01-value'),
                     trayCount: document.getElementById('tray-count'),
                     trayList: document.getElementById('tray-list'),
                     currentContainer: document.getElementById('current-container'),
@@ -1010,6 +1085,71 @@
                 this.renderMainContent(state);
             }
 
+            renderCoordinates(state) {
+                // 渲染Crn2001坐标
+                const crn2001 = state.devices['Crn2001'];
+                if (crn2001) {
+                    // 更新设备名称
+                    this.elements.crn2001Label.textContent = `${crn2001.name || '堆埛机001'}:`;
+                    
+                    if (crn2001.currentLocation) {
+                        const loc = crn2001.currentLocation;
+                        if (loc.code && loc.code !== '未知货位') {
+                            this.elements.crn2001Value.textContent = loc.code;
+                        } else {
+                            this.elements.crn2001Value.textContent = `行${loc.row}列${loc.col}层${loc.layer}`;
+                        }
+                    } else {
+                        this.elements.crn2001Value.textContent = '无位置信息';
+                    }
+                } else {
+                    this.elements.crn2001Label.textContent = '堆埛机001:';
+                    this.elements.crn2001Value.textContent = '无数据';
+                }
+
+                // 渲染Crn2002坐标
+                const crn2002 = state.devices['Crn2002'];
+                if (crn2002) {
+                    // 更新设备名称
+                    this.elements.crn2002Label.textContent = `${crn2002.name || '堆埛机002'}:`;
+                    
+                    if (crn2002.currentLocation) {
+                        const loc = crn2002.currentLocation;
+                        if (loc.code && loc.code !== '未知货位') {
+                            this.elements.crn2002Value.textContent = loc.code;
+                        } else {
+                            this.elements.crn2002Value.textContent = `行${loc.row}列${loc.col}层${loc.layer}`;
+                        }
+                    } else {
+                        this.elements.crn2002Value.textContent = '无位置信息';
+                    }
+                } else {
+                    this.elements.crn2002Label.textContent = '堆埛机002:';
+                    this.elements.crn2002Value.textContent = '无数据';
+                }
+
+                // 渲染RGV01坐标
+                const rgv01 = state.devices['RGV01'];
+                if (rgv01) {
+                    // 更新设备名称
+                    this.elements.rgv01Label.textContent = `${rgv01.name || '穿梭车'}:`;
+                    
+                    if (rgv01.currentLocation) {
+                        const loc = rgv01.currentLocation;
+                        if (loc.code && loc.code !== '未知货位') {
+                            this.elements.rgv01Value.textContent = loc.code;
+                        } else {
+                            this.elements.rgv01Value.textContent = `行${loc.row}列${loc.col}层${loc.layer}`;
+                        }
+                    } else {
+                        this.elements.rgv01Value.textContent = '无位置信息';
+                    }
+                } else {
+                    this.elements.rgv01Label.textContent = '穿梭车:';
+                    this.elements.rgv01Value.textContent = '无数据';
+                }
+            }
+
             renderHeader(state) {
                 // 标题显示当前站台名称
                 if (state.errorMessage) {
@@ -1020,9 +1160,8 @@
                     this.elements.header.classList.remove('error');
                 }
 
-                // 操作模式
-                const modeText = this.context.dicOperationMode[state.operationMode] || state.operationMode;
-                this.elements.operationMode.textContent = modeText;
+                // 显示坐标信息
+                this.renderCoordinates(state);
             }
 
             renderConnectionStatus(state) {

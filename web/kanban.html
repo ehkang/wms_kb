@@ -929,6 +929,7 @@
             updateDeviceTrayMap() {
                 const deviceTrayMap = new Map();
                 let operationMode = this.state.operationMode;
+                let timestampCounter = Date.now(); // 基础时间戳
 
                 // 遍历所有设备构建字典
                 for (const [deviceCode, device] of Object.entries(this.state.devices)) {
@@ -943,33 +944,33 @@
                     if (device.childrenDevice && device.childrenDevice.length > 0) {
                         device.childrenDevice.forEach((child, index) => {
                             const childDeviceCode = child.code || `${deviceCode}_child_${index}`;
-                            // 检查托盘号有效性，工作状态为0时不考虑托盘
+                            // 检查托盘号有效性，工作状态为0或undefined时不考虑托盘
                             if (child.palletCode && 
                                 child.palletCode != '0' && 
                                 child.palletCode.toString().length > 2 &&
-                                child.workStatus !== 0) {
+                                child.workStatus != null && child.workStatus !== 0) {
                                 
                                 deviceTrayMap.set(childDeviceCode, {
                                     trayCode: child.palletCode.toString(),
                                     deviceName: child.name || device.name || deviceCode,
                                     location: `${device.name || deviceCode}-位置${index + 1}`,
-                                    timestamp: Date.now()
+                                    timestamp: ++timestampCounter // 每个设备递增时间戳
                                 });
                                 console.log(`设备 ${childDeviceCode} 有托盘 ${child.palletCode}，工作状态: ${child.workStatus}`);
                             }
                         });
                     } else {
-                        // 没有子设备，看主设备，工作状态为0时不考虑托盘
+                        // 没有子设备，看主设备，工作状态为0或undefined时不考虑托盘
                         if (device.palletCode && 
                             device.palletCode != '0' && 
                             device.palletCode.toString().length > 2 &&
-                            device.workStatus !== 0) {
+                            device.workStatus != null && device.workStatus !== 0) {
                             
                             deviceTrayMap.set(deviceCode, {
                                 trayCode: device.palletCode.toString(),
                                 deviceName: device.name || deviceCode,
                                 location: device.name || deviceCode,
-                                timestamp: Date.now()
+                                timestamp: ++timestampCounter // 每个设备递增时间戳
                             });
                             console.log(`设备 ${deviceCode} 有托盘 ${device.palletCode}，工作状态: ${device.workStatus}`);
                         }
@@ -995,12 +996,13 @@
                 // 更新设备托盘字典
                 const { deviceTrayMap, operationMode } = this.updateDeviceTrayMap();
 
-                // 从字典中提取托盘列表用于展示，并按托盘编码去重（保留最新位置）
+                // 从字典中提取托盘列表用于展示，并按托盘编码去重（优先显示当前站台）
                 const trayCodeMap = new Map();
                 deviceTrayMap.forEach((item, deviceCode) => {
                     const trayCode = item.trayCode;
-                    // 如果托盘编码已存在，比较时间戳使用最新的
-                    if (!trayCodeMap.has(trayCode) || item.timestamp > trayCodeMap.get(trayCode).timestamp) {
+                    
+                    if (!trayCodeMap.has(trayCode)) {
+                        // 第一次遇到这个托盘编码，直接添加
                         trayCodeMap.set(trayCode, {
                             code: trayCode,
                             location: item.location,
@@ -1008,6 +1010,32 @@
                             deviceCode: deviceCode,
                             timestamp: item.timestamp
                         });
+                    } else {
+                        // 托盘编码已存在，应用去重逻辑
+                        const existing = trayCodeMap.get(trayCode);
+                        let shouldReplace = false;
+                        
+                        // 优先级1: 当前站台的托盘优先
+                        if (deviceCode === this.localStationNo && existing.deviceCode !== this.localStationNo) {
+                            shouldReplace = true;
+                        }
+                        // 优先级2: 如果都不是当前站台，则比较设备编码字典序（保持一致性）
+                        else if (existing.deviceCode !== this.localStationNo && deviceCode !== this.localStationNo) {
+                            shouldReplace = deviceCode > existing.deviceCode;
+                        }
+                        
+                        if (shouldReplace) {
+                            trayCodeMap.set(trayCode, {
+                                code: trayCode,
+                                location: item.location,
+                                deviceName: item.deviceName,
+                                deviceCode: deviceCode,
+                                timestamp: item.timestamp
+                            });
+                            console.log(`托盘 ${trayCode} 重复，优先显示设备 ${deviceCode} 的位置，替换 ${existing.deviceCode}`);
+                        } else {
+                            console.log(`托盘 ${trayCode} 重复，保持设备 ${existing.deviceCode} 的位置，忽略 ${deviceCode}`);
+                        }
                     }
                 });
                 
@@ -1171,12 +1199,13 @@
                 // 更新设备托盘字典
                 const { deviceTrayMap, operationMode } = this.updateDeviceTrayMap();
                 
-                // 从字典中提取托盘列表用于展示，并按托盘编码去重（保留最新位置）
+                // 从字典中提取托盘列表用于展示，并按托盘编码去重（优先显示当前站台）
                 const trayCodeMap = new Map();
                 deviceTrayMap.forEach((item, deviceCode) => {
                     const trayCode = item.trayCode;
-                    // 如果托盘编码已存在，比较时间戳使用最新的
-                    if (!trayCodeMap.has(trayCode) || item.timestamp > trayCodeMap.get(trayCode).timestamp) {
+                    
+                    if (!trayCodeMap.has(trayCode)) {
+                        // 第一次遇到这个托盘编码，直接添加
                         trayCodeMap.set(trayCode, {
                             code: trayCode,
                             location: item.location,
@@ -1184,6 +1213,32 @@
                             deviceCode: deviceCode,
                             timestamp: item.timestamp
                         });
+                    } else {
+                        // 托盘编码已存在，应用去重逻辑
+                        const existing = trayCodeMap.get(trayCode);
+                        let shouldReplace = false;
+                        
+                        // 优先级1: 当前站台的托盘优先
+                        if (deviceCode === this.localStationNo && existing.deviceCode !== this.localStationNo) {
+                            shouldReplace = true;
+                        }
+                        // 优先级2: 如果都不是当前站台，则比较设备编码字典序（保持一致性）
+                        else if (existing.deviceCode !== this.localStationNo && deviceCode !== this.localStationNo) {
+                            shouldReplace = deviceCode > existing.deviceCode;
+                        }
+                        
+                        if (shouldReplace) {
+                            trayCodeMap.set(trayCode, {
+                                code: trayCode,
+                                location: item.location,
+                                deviceName: item.deviceName,
+                                deviceCode: deviceCode,
+                                timestamp: item.timestamp
+                            });
+                            console.log(`托盘 ${trayCode} 重复，优先显示设备 ${deviceCode} 的位置，替换 ${existing.deviceCode}`);
+                        } else {
+                            console.log(`托盘 ${trayCode} 重复，保持设备 ${existing.deviceCode} 的位置，忽略 ${deviceCode}`);
+                        }
                     }
                 });
                 

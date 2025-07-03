@@ -750,7 +750,8 @@
                                 deviceTrayMap.set(childDeviceCode, {
                                     trayCode: child.palletCode.toString(),
                                     deviceName: child.name || device.name || deviceCode,
-                                    location: `${device.name || deviceCode}-位置${index + 1}`
+                                    location: `${device.name || deviceCode}-位置${index + 1}`,
+                                    timestamp: Date.now()
                                 });
                                 console.log(`设备 ${childDeviceCode} 有托盘 ${child.palletCode}，工作状态: ${child.workStatus}`);
                             }
@@ -765,7 +766,8 @@
                             deviceTrayMap.set(deviceCode, {
                                 trayCode: device.palletCode.toString(),
                                 deviceName: device.name || deviceCode,
-                                location: device.name || deviceCode
+                                location: device.name || deviceCode,
+                                timestamp: Date.now()
                             });
                             console.log(`设备 ${deviceCode} 有托盘 ${device.palletCode}，工作状态: ${device.workStatus}`);
                         }
@@ -791,9 +793,24 @@
                 // 更新设备托盘字典
                 const { deviceTrayMap, operationMode } = this.updateDeviceTrayMap();
 
-                // 从字典中提取托盘列表用于展示
-                const containers = Array.from(deviceTrayMap.values()).map(item => ({
-                    code: item.trayCode,
+                // 从字典中提取托盘列表用于展示，并按托盘编码去重（保留最新位置）
+                const trayCodeMap = new Map();
+                deviceTrayMap.forEach((item, deviceCode) => {
+                    const trayCode = item.trayCode;
+                    // 如果托盘编码已存在，比较时间戳使用最新的
+                    if (!trayCodeMap.has(trayCode) || item.timestamp > trayCodeMap.get(trayCode).timestamp) {
+                        trayCodeMap.set(trayCode, {
+                            code: trayCode,
+                            location: item.location,
+                            deviceName: item.deviceName,
+                            deviceCode: deviceCode,
+                            timestamp: item.timestamp
+                        });
+                    }
+                });
+                
+                const containers = Array.from(trayCodeMap.values()).map(item => ({
+                    code: item.code,
                     location: item.location,
                     deviceName: item.deviceName
                 }));
@@ -952,9 +969,24 @@
                 // 更新设备托盘字典
                 const { deviceTrayMap, operationMode } = this.updateDeviceTrayMap();
                 
-                // 从字典中提取托盘列表用于展示
-                const containers = Array.from(deviceTrayMap.values()).map(item => ({
-                    code: item.trayCode,
+                // 从字典中提取托盘列表用于展示，并按托盘编码去重（保留最新位置）
+                const trayCodeMap = new Map();
+                deviceTrayMap.forEach((item, deviceCode) => {
+                    const trayCode = item.trayCode;
+                    // 如果托盘编码已存在，比较时间戳使用最新的
+                    if (!trayCodeMap.has(trayCode) || item.timestamp > trayCodeMap.get(trayCode).timestamp) {
+                        trayCodeMap.set(trayCode, {
+                            code: trayCode,
+                            location: item.location,
+                            deviceName: item.deviceName,
+                            deviceCode: deviceCode,
+                            timestamp: item.timestamp
+                        });
+                    }
+                });
+                
+                const containers = Array.from(trayCodeMap.values()).map(item => ({
+                    code: item.code,
                     location: item.location,
                     deviceName: item.deviceName
                 }));

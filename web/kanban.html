@@ -86,7 +86,22 @@
         .header-controls {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255,255,255,0.1);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+        }
+
+        .status-label {
+            font-weight: 500;
+            margin-right: 4px;
         }
 
         .operation-mode {
@@ -403,15 +418,19 @@
     <div class="dashboard" id="app">
         <!-- 头部 -->
         <header class="header" id="header">
-            <h1 class="header-title" id="header-title">WMS 仓储管理系统</h1>
+            <h1 class="header-title" id="header-title">站台名称加载中...</h1>
             <div class="header-controls">
-                <div class="status-indicator" id="connection-status">
-                    <div class="status-dot" id="status-dot"></div>
-                    <span id="status-text">连接中...</span>
+                <div class="connection-status" id="wms-status">
+                    <span class="status-label">WMS:</span>
+                    <div class="status-dot" id="wms-dot"></div>
+                    <span id="wms-text">连接中</span>
+                </div>
+                <div class="connection-status" id="wcs-status">
+                    <span class="status-label">WCS:</span>
+                    <div class="status-dot" id="wcs-dot"></div>
+                    <span id="wcs-text">连接中</span>
                 </div>
                 <div class="operation-mode" id="operation-mode">出入库</div>
-                <button class="btn" id="refresh-btn">刷新</button>
-                <button class="btn" id="fullscreen-btn">全屏</button>
             </div>
         </header>
 
@@ -420,7 +439,7 @@
             <!-- 托盘信息 -->
             <aside class="tray-info">
                 <div class="tray-title">
-                    当前托盘列表 (<span id="tray-count">0</span>)
+                    当前站台托盘 (<span id="tray-count">0</span>)
                 </div>
                 <div class="tray-list" id="tray-list">
                     <div class="loading">加载中...</div>
@@ -430,13 +449,13 @@
             <!-- 主内容 -->
             <main class="main-content">
                 <div class="content-title">
-                    <span>托盘货物信息</span>
-                    <span class="content-subtitle" id="current-container">请选择托盘</span>
+                    <span>当前站台货物信息</span>
+                    <span class="content-subtitle" id="current-container">站台暂无托盘</span>
                 </div>
                 <div class="goods-list" id="goods-list">
                     <div class="empty-state">
                         <div class="empty-state-icon">📦</div>
-                        <p>请选择一个托盘查看货物信息</p>
+                        <p>当前站台暂无托盘</p>
                     </div>
                 </div>
             </main>
@@ -457,9 +476,11 @@
                     errorMessage: "",
                     isLight: true,
                     lastUpdate: new Date(),
-                    connectionStatus: 'connecting',
+                    wmsConnectionStatus: 'connecting',
+                    wcsConnectionStatus: 'connecting',
                     currentContainer: '',
-                    isLoading: false
+                    isLoading: false,
+                    stationName: '未知站台'
                 };
                 
                 this.listeners = new Set();
@@ -509,14 +530,14 @@
                 // 响应拦截器
                 this.wmsAPI.interceptors.response.use(
                     response => {
-                        this.setState({ isLoading: false, errorMessage: "" });
+                        this.setState({ isLoading: false, errorMessage: "", wmsConnectionStatus: 'connected' });
                         return response;
                     },
                     error => {
                         this.setState({ 
                             isLoading: false,
                             errorMessage: `WMS API错误: ${error.message}`,
-                            connectionStatus: 'error'
+                            wmsConnectionStatus: 'error'
                         });
                         return Promise.reject(error);
                     }
@@ -524,14 +545,14 @@
 
                 this.wcsAPI.interceptors.response.use(
                     response => {
-                        this.setState({ isLoading: false, errorMessage: "" });
+                        this.setState({ isLoading: false, errorMessage: "", wcsConnectionStatus: 'connected' });
                         return response;
                     },
                     error => {
                         this.setState({ 
                             isLoading: false,
                             errorMessage: `WCS API错误: ${error.message}`,
-                            connectionStatus: 'error'
+                            wcsConnectionStatus: 'error'
                         });
                         return Promise.reject(error);
                     }
@@ -543,11 +564,15 @@
                 try {
                     await this.initGetDeviceInfo();
                     await this.initSignalR();
-                    this.setState({ connectionStatus: 'connected' });
+                    this.setState({ 
+                        wmsConnectionStatus: 'connected',
+                        wcsConnectionStatus: 'connected'
+                    });
                 } catch (error) {
                     console.error("初始化连接失败:", error);
                     this.setState({ 
-                        connectionStatus: 'error',
+                        wmsConnectionStatus: 'error',
+                        wcsConnectionStatus: 'error',
                         errorMessage: `连接失败: ${error.message}`
                     });
                 }
@@ -598,7 +623,10 @@
 
             // 初始化设备信息
             async initGetDeviceInfo() {
-                this.setState({ connectionStatus: 'connecting' });
+                this.setState({ 
+                    wmsConnectionStatus: 'connecting',
+                    wcsConnectionStatus: 'connecting'
+                });
                 
                 for (const deviceCode of this.watchDeviceCodes) {
                     try {
@@ -610,12 +638,22 @@
                                 const devices = { ...this.state.devices };
                                 devices[item.code] = item;
                                 this.setState({ devices });
+                                
+                                // 设置当前站台名称
+                                if (item.code === this.localStationNo) {
+                                    this.setState({ stationName: item.name || item.code });
+                                }
                             });
                         } else {
                             this.watchStationNos.push(deviceInfo.code);
                             const devices = { ...this.state.devices };
                             devices[deviceInfo.code] = deviceInfo;
                             this.setState({ devices });
+                            
+                            // 设置当前站台名称
+                            if (deviceInfo.code === this.localStationNo) {
+                                this.setState({ stationName: deviceInfo.name || deviceInfo.code });
+                            }
                         }
                     } catch (error) {
                         console.error(`设备 ${deviceCode} 初始化失败:`, error);
@@ -625,68 +663,57 @@
                 await this.handleInfo();
             }
 
-            // 处理设备信息并更新托盘列表
+            // 处理设备信息并更新托盘列表（只显示当前站台）
             async handleInfo() {
-                if (this.watchStationNos.length === 0) {
-                    console.log("watchStationNos为空，跳过处理");
+                // 只处理当前站台的托盘
+                const localStation = this.state.devices[this.localStationNo];
+                if (!localStation) {
+                    this.setState({ containers: [], currentContainer: '', localGoods: [] });
                     return;
                 }
 
-                const trays = [];
-                const trayMap = new Map(); // 用于存储托盘和位置的映射
+                // 设置操作模式
+                if (localStation.operationMode) {
+                    this.setState({ operationMode: localStation.operationMode });
+                }
 
-                for (const stationNo of this.watchStationNos) {
-                    const station = this.state.devices[stationNo];
-                    if (!station) continue;
+                // 只收集当前站台的托盘
+                let currentTrayCode = null;
 
-                    // 设置操作模式
-                    if (station.operationMode) {
-                        this.setState({ operationMode: station.operationMode });
-                    }
+                // 检查主设备的托盘
+                if (localStation.palletCode && localStation.palletCode != '0' && localStation.palletCode.toString().length > 2) {
+                    currentTrayCode = localStation.palletCode.toString();
+                }
 
-                    // 收集命令中的托盘
-                    if (station.commands && station.commands.length > 0) {
-                        station.commands.forEach(item => {
-                            if (item.pallteCode && item.pallteCode != '0' && item.pallteCode.toString().length > 2) {
-                                const trayCode = item.pallteCode.toString();
-                                if (!trayMap.has(trayCode)) {
-                                    trayMap.set(trayCode, { code: trayCode, location: `${station.name || station.code}-命令` });
-                                }
-                            }
-                        });
-                    }
-
-                    // 收集主设备的托盘
-                    if (station.palletCode && station.palletCode != '0' && station.palletCode.toString().length > 2) {
-                        const trayCode = station.palletCode.toString();
-                        if (!trayMap.has(trayCode)) {
-                            trayMap.set(trayCode, { code: trayCode, location: station.name || station.code });
+                // 检查子设备的托盘（如果是输送线等具有子设备的设备）
+                if (localStation.childrenDevice && localStation.childrenDevice.length > 0) {
+                    for (const child of localStation.childrenDevice) {
+                        if (child.palletCode && child.palletCode != '0' && child.palletCode.toString().length > 2) {
+                            currentTrayCode = child.palletCode.toString();
+                            break; // 只取第一个有效托盘
                         }
-                    }
-
-                    // 收集子设备的托盘
-                    if (station.childrenDevice && station.childrenDevice.length > 0) {
-                        station.childrenDevice.forEach((child, index) => {
-                            if (child.palletCode && child.palletCode != '0' && child.palletCode.toString().length > 2) {
-                                const trayCode = child.palletCode.toString();
-                                if (!trayMap.has(trayCode)) {
-                                    trayMap.set(trayCode, { 
-                                        code: trayCode, 
-                                        location: `${station.name || station.code}-位置${index + 1}` 
-                                    });
-                                }
-                            }
-                        });
                     }
                 }
 
-                // 转换为数组
-                const containers = Array.from(trayMap.values());
-                this.setState({ containers });
-
-                // 如果有托盘且未选择托盘，则选择第一个
-                if (containers.length > 0 && !this.state.currentContainer) {
-                    await this.selectTray(containers[0].code);
+                // 更新状态
+                if (currentTrayCode) {
+                    const containers = [{ 
+                        code: currentTrayCode, 
+                        location: this.state.stationName || localStation.name || localStation.code 
+                    }];
+                    this.setState({ containers });
+                    
+                    // 自动加载当前托盘的货物信息
+                    if (currentTrayCode !== this.state.currentContainer) {
+                        await this.getGoods(currentTrayCode);
+                    }
+                } else {
+                    // 没有托盘时清空
+                    this.setState({ 
+                        containers: [], 
+                        currentContainer: '', 
+                        localGoods: [] 
+                    });
                 }
             }
 
@@ -742,25 +769,25 @@
 
                     // 连接状态事件
                     this.signalRConnection.onreconnecting(() => {
-                        this.setState({ connectionStatus: 'reconnecting' });
+                        this.setState({ wcsConnectionStatus: 'reconnecting' });
                     });
 
                     this.signalRConnection.onreconnected(() => {
-                        this.setState({ connectionStatus: 'connected' });
+                        this.setState({ wcsConnectionStatus: 'connected' });
                     });
 
                     this.signalRConnection.onclose(() => {
-                        this.setState({ connectionStatus: 'disconnected' });
+                        this.setState({ wcsConnectionStatus: 'disconnected' });
                     });
 
                     await this.signalRConnection.start();
                     console.log("SignalR连接已建立");
-                    this.setState({ connectionStatus: 'connected' });
+                    this.setState({ wcsConnectionStatus: 'connected' });
 
                 } catch (error) {
                     console.error("SignalR连接失败:", error);
                     this.setState({ 
-                        connectionStatus: 'error',
+                        wcsConnectionStatus: 'error',
                         errorMessage: `WebSocket连接失败: ${error.message}`
                     });
                 }
@@ -799,17 +826,7 @@
                 this.setState({ isLight: !this.state.isLight });
             }
 
-            // 选择托盘
-            async selectTray(trayCode) {
-                if (trayCode && trayCode != '0') {
-                    await this.getGoods(trayCode);
-                } else {
-                    this.setState({ 
-                        localGoods: [], 
-                        currentContainer: '' 
-                    });
-                }
-            }
+            // 移除了手动选择托盘功能，系统自动显示当前站台托盘
 
             // 关闭连接
             disconnect() {
@@ -839,43 +856,24 @@
                     header: document.getElementById('header'),
                     headerTitle: document.getElementById('header-title'),
                     operationMode: document.getElementById('operation-mode'),
-                    connectionStatus: document.getElementById('connection-status'),
-                    statusDot: document.getElementById('status-dot'),
-                    statusText: document.getElementById('status-text'),
+                    wmsStatus: document.getElementById('wms-status'),
+                    wmsDot: document.getElementById('wms-dot'),
+                    wmsText: document.getElementById('wms-text'),
+                    wcsStatus: document.getElementById('wcs-status'),
+                    wcsDot: document.getElementById('wcs-dot'),
+                    wcsText: document.getElementById('wcs-text'),
                     trayCount: document.getElementById('tray-count'),
                     trayList: document.getElementById('tray-list'),
                     currentContainer: document.getElementById('current-container'),
                     goodsList: document.getElementById('goods-list'),
-                    refreshBtn: document.getElementById('refresh-btn'),
-                    fullscreenBtn: document.getElementById('fullscreen-btn'),
                     starsContainer: document.getElementById('stars-container')
                 };
             }
 
             bindEvents() {
-                this.elements.refreshBtn.addEventListener('click', async () => {
-                    this.elements.refreshBtn.disabled = true;
-                    await this.context.refreshData();
-                    setTimeout(() => {
-                        this.elements.refreshBtn.disabled = false;
-                    }, 1000);
-                });
-
-                this.elements.fullscreenBtn.addEventListener('click', () => {
-                    this.toggleFullscreen();
-                });
-
-                // 键盘事件
+                // 移除了刷新和全屏相关的事件处理
+                // 保留F5刷新功能供调试使用
                 document.addEventListener('keydown', (e) => {
-                    if (e.key === 'F11') {
-                        e.preventDefault();
-                        this.toggleFullscreen();
-                    }
-                    if (e.key === 'Escape') {
-                        if (document.fullscreenElement) {
-                            document.exitFullscreen();
-                        }
-                    }
                     if (e.key === 'F5') {
                         e.preventDefault();
                         this.context.refreshData();
@@ -912,29 +910,22 @@
                 }
             }
 
-            toggleFullscreen() {
-                if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen();
-                } else {
-                    document.exitFullscreen();
-                }
-            }
+            // 移除了全屏功能
 
             render(state) {
                 this.renderHeader(state);
                 this.renderConnectionStatus(state);
-                this.renderTrayList(state);
+                this.renderTrayInfo(state);
                 this.renderMainContent(state);
             }
 
             renderHeader(state) {
-                // 标题和错误状态
+                // 标题显示当前站台名称
                 if (state.errorMessage) {
-                    this.elements.headerTitle.textContent = state.errorMessage;
+                    this.elements.headerTitle.textContent = `站台: ${state.stationName} - ${state.errorMessage}`;
                     this.elements.header.classList.add('error');
                 } else {
-                    const deviceName = state.devices[this.context.localStationNo]?.name || '仓储管理系统';
-                    this.elements.headerTitle.textContent = `WMS ${deviceName}`;
+                    this.elements.headerTitle.textContent = `站台: ${state.stationName}`;
                     this.elements.header.classList.remove('error');
                 }
 
@@ -945,45 +936,48 @@
 
             renderConnectionStatus(state) {
                 const statusMap = {
-                    'connecting': { text: '连接中...', class: 'warning' },
+                    'connecting': { text: '连接中', class: 'warning' },
                     'connected': { text: '已连接', class: '' },
-                    'reconnecting': { text: '重连中...', class: 'warning' },
+                    'reconnecting': { text: '重连中', class: 'warning' },
                     'disconnected': { text: '已断开', class: 'error' },
-                    'error': { text: '连接错误', class: 'error' }
+                    'error': { text: '错误', class: 'error' }
                 };
 
-                const status = statusMap[state.connectionStatus] || statusMap['error'];
-                this.elements.statusText.textContent = status.text;
-                
-                this.elements.statusDot.className = 'status-dot';
-                if (status.class) {
-                    this.elements.statusDot.classList.add(status.class);
+                // WMS状态
+                const wmsStatus = statusMap[state.wmsConnectionStatus] || statusMap['error'];
+                this.elements.wmsText.textContent = wmsStatus.text;
+                this.elements.wmsDot.className = 'status-dot';
+                if (wmsStatus.class) {
+                    this.elements.wmsDot.classList.add(wmsStatus.class);
+                }
+
+                // WCS状态
+                const wcsStatus = statusMap[state.wcsConnectionStatus] || statusMap['error'];
+                this.elements.wcsText.textContent = wcsStatus.text;
+                this.elements.wcsDot.className = 'status-dot';
+                if (wcsStatus.class) {
+                    this.elements.wcsDot.classList.add(wcsStatus.class);
                 }
             }
 
-            renderTrayList(state) {
+            renderTrayInfo(state) {
                 // 托盘数量
                 this.elements.trayCount.textContent = state.containers.length;
 
-                // 托盘列表
+                // 托盘列表（当前站台只有一个托盘）
                 if (state.containers.length === 0) {
-                    this.elements.trayList.innerHTML = '<div class="loading">暂无托盘</div>';
+                    this.elements.trayList.innerHTML = '<div class="loading">当前站台暂无托盘</div>';
                     return;
                 }
                 
                 this.elements.trayList.innerHTML = state.containers.map(tray => {
-                    const isActive = tray.code === state.currentContainer;
-                    
-                    const classes = ['tray-item'];
-                    if (isActive) {
-                        classes.push('active');
-                        if (state.isLight) {
-                            classes.push('blink');
-                        }
+                    const classes = ['tray-item', 'active'];
+                    if (state.isLight) {
+                        classes.push('blink');
                     }
                     
                     return `
-                        <div class="${classes.join(' ')}" data-tray="${tray.code}" onclick="window.selectTray('${tray.code}')">
+                        <div class="${classes.join(' ')}" data-tray="${tray.code}">
                             ${tray.code}
                             <div class="tray-item-location">${tray.location}</div>
                         </div>
@@ -994,12 +988,9 @@
             renderMainContent(state) {
                 // 当前容器显示
                 if (state.currentContainer) {
-                    // 查找托盘的位置信息
-                    const trayInfo = state.containers.find(t => t.code === state.currentContainer);
-                    const locationText = trayInfo ? trayInfo.location : '未知位置';
-                    this.elements.currentContainer.textContent = `当前托盘: ${state.currentContainer} (${locationText})`;
+                    this.elements.currentContainer.textContent = `当前托盘: ${state.currentContainer}`;
                 } else {
-                    this.elements.currentContainer.textContent = '请选择托盘';
+                    this.elements.currentContainer.textContent = '当前站台暂无托盘';
                 }
 
                 // 货物列表
@@ -1017,7 +1008,7 @@
                     this.elements.goodsList.innerHTML = `
                         <div class="empty-state">
                             <div class="empty-state-icon">📦</div>
-                            <p>${state.currentContainer ? '该托盘暂无货物' : '请选择一个托盘查看货物信息'}</p>
+                            <p>${state.currentContainer ? '该托盘暂无货物' : '当前站台暂无托盘'}</p>
                         </div>
                     `;
                     return;
@@ -1039,12 +1030,7 @@
             }
         }
 
-        // 全局函数（供点击事件调用）
-        window.selectTray = function(trayCode) {
-            if (window.wmsContext) {
-                window.wmsContext.selectTray(trayCode);
-            }
-        };
+        // 移除了托盘选择功能，系统现在自动显示当前站台的托盘货物
 
         // 应用初始化
         document.addEventListener('DOMContentLoaded', () => {

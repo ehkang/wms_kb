@@ -12,7 +12,7 @@ func main() {
 	r := gin.Default()
 
 	// 设置静态文件服务
-	r.StaticFile("/", "./dashboard_integrated.html")
+	r.StaticFile("/", "./web/kanban.html")
 	r.StaticFile("/dashboard", "./dashboard_integrated.html")
 
 	// 自定义代理处理器，正确处理路径重写

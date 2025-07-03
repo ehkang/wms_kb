@@ -472,6 +472,7 @@
                     localGoods: [],
                     containers: [],
                     devices: {},
+                    deviceTrayMap: new Map(), // 设备托盘字典：设备编号 -> 托盘信息
                     operationMode: "InOut",
                     errorMessage: "",
                     isLight: true,
@@ -663,57 +664,107 @@
                 await this.handleInfo();
             }
 
-            // 处理设备信息并更新托盘列表（只显示当前站台）
-            async handleInfo() {
-                // 只处理当前站台的托盘
-                const localStation = this.state.devices[this.localStationNo];
-                if (!localStation) {
-                    this.setState({ containers: [], currentContainer: '', localGoods: [] });
-                    return;
-                }
+            // 构建和更新设备托盘字典
+            updateDeviceTrayMap() {
+                const deviceTrayMap = new Map();
+                let operationMode = this.state.operationMode;
 
-                // 设置操作模式
-                if (localStation.operationMode) {
-                    this.setState({ operationMode: localStation.operationMode });
-                }
+                // 遍历所有设备构建字典
+                for (const [deviceCode, device] of Object.entries(this.state.devices)) {
+                    if (!device) continue;
 
-                // 只收集当前站台的托盘
-                let currentTrayCode = null;
+                    // 更新操作模式
+                    if (device.operationMode) {
+                        operationMode = device.operationMode;
+                    }
 
-                // 检查主设备的托盘
-                if (localStation.palletCode && localStation.palletCode != '0' && localStation.palletCode.toString().length > 2) {
-                    currentTrayCode = localStation.palletCode.toString();
-                }
-
-                // 检查子设备的托盘（如果是输送线等具有子设备的设备）
-                if (localStation.childrenDevice && localStation.childrenDevice.length > 0) {
-                    for (const child of localStation.childrenDevice) {
-                        if (child.palletCode && child.palletCode != '0' && child.palletCode.toString().length > 2) {
-                            currentTrayCode = child.palletCode.toString();
-                            break; // 只取第一个有效托盘
+                    // 如果有子设备，只看子设备
+                    if (device.childrenDevice && device.childrenDevice.length > 0) {
+                        device.childrenDevice.forEach((child, index) => {
+                            const childDeviceCode = child.code || `${deviceCode}_child_${index}`;
+                            if (child.palletCode && child.palletCode != '0' && child.palletCode.toString().length > 2) {
+                                deviceTrayMap.set(childDeviceCode, {
+                                    trayCode: child.palletCode.toString(),
+                                    deviceName: child.name || device.name || deviceCode,
+                                    location: `${device.name || deviceCode}-位置${index + 1}`
+                                });
+                            }
+                        });
+                    } else {
+                        // 没有子设备，看主设备
+                        if (device.palletCode && device.palletCode != '0' && device.palletCode.toString().length > 2) {
+                            deviceTrayMap.set(deviceCode, {
+                                trayCode: device.palletCode.toString(),
+                                deviceName: device.name || deviceCode,
+                                location: device.name || deviceCode
+                            });
                         }
                     }
+
+                    // 附加：收集命令中的托盘（作为额外信息）
+                    if (device.commands && device.commands.length > 0) {
+                        device.commands.forEach((item, cmdIndex) => {
+                            if (item.pallteCode && item.pallteCode != '0' && item.pallteCode.toString().length > 2) {
+                                const commandKey = `${deviceCode}_cmd_${cmdIndex}`;
+                                deviceTrayMap.set(commandKey, {
+                                    trayCode: item.pallteCode.toString(),
+                                    deviceName: device.name || deviceCode,
+                                    location: `${device.name || deviceCode}-命令${cmdIndex + 1}`
+                                });
+                            }
+                        });
+                    }
                 }
 
-                // 更新状态
-                if (currentTrayCode) {
-                    const containers = [{ 
-                        code: currentTrayCode, 
-                        location: this.state.stationName || localStation.name || localStation.code 
-                    }];
-                    this.setState({ containers });
-                    
-                    // 自动加载当前托盘的货物信息
-                    if (currentTrayCode !== this.state.currentContainer) {
-                        await this.getGoods(currentTrayCode);
-                    }
-                } else {
-                    // 没有托盘时清空
+                return { deviceTrayMap, operationMode };
+            }
+
+            // 处理设备信息并更新托盘列表
+            async handleInfo() {
+                if (Object.keys(this.state.devices).length === 0) {
                     this.setState({ 
                         containers: [], 
                         currentContainer: '', 
-                        localGoods: [] 
+                        localGoods: [],
+                        deviceTrayMap: new Map()
                     });
+                    return;
+                }
+
+                // 更新设备托盘字典
+                const { deviceTrayMap, operationMode } = this.updateDeviceTrayMap();
+
+                // 从字典中提取托盘列表用于展示
+                const containers = Array.from(deviceTrayMap.values()).map(item => ({
+                    code: item.trayCode,
+                    location: item.location,
+                    deviceName: item.deviceName
+                }));
+
+                this.setState({ 
+                    containers, 
+                    operationMode,
+                    deviceTrayMap
+                });
+
+                // 检查当前站台是否有托盘
+                await this.checkCurrentStationTray();
+            }
+
+            // 检查并更新当前站台货物信息
+            async checkCurrentStationTray() {
+                const currentStationTray = this.state.deviceTrayMap.get(this.localStationNo);
+                
+                if (currentStationTray) {
+                    // 当前站台有托盘，显示货物信息
+                    if (currentStationTray.trayCode !== this.state.currentContainer) {
+                        await this.getGoods(currentStationTray.trayCode);
+                    }
+                } else {
+                    // 当前站台没有托盘，清空货物信息
+                    if (this.state.currentContainer) {
+                        this.setState({ currentContainer: '', localGoods: [] });
+                    }
                 }
             }
 
@@ -793,21 +844,61 @@
                 }
             }
 
-            // 设备数据更新处理
+            // 设备数据更新处理（WebSocket推送）
             async afterDeviceDataUpdate(deviceNo, newInfo) {
                 console.log(`设备数据更新: ${deviceNo}`, newInfo);
                 
-                for (const stationNo of this.watchStationNos) {
-                    if (deviceNo === stationNo) {
-                        const devices = { ...this.state.devices };
-                        devices[deviceNo] = newInfo;
-                        this.setState({ devices });
-                        break;
+                const devices = { ...this.state.devices };
+                let shouldUpdateCurrentStation = false;
+                
+                // 更新设备信息
+                if (this.watchStationNos.includes(deviceNo)) {
+                    devices[deviceNo] = newInfo;
+                    
+                    // 更新站台名称
+                    if (deviceNo === this.localStationNo) {
+                        this.setState({ stationName: newInfo.name || newInfo.code || deviceNo });
+                        shouldUpdateCurrentStation = true;
                     }
                 }
                 
-                // 重新处理信息
-                await this.handleInfo();
+                // 如果是父设备更新，也要更新子设备
+                if (newInfo.childrenDevice && newInfo.childrenDevice.length > 0) {
+                    newInfo.childrenDevice.forEach(child => {
+                        if (this.watchStationNos.includes(child.code)) {
+                            devices[child.code] = child;
+                            
+                            // 更新站台名称
+                            if (child.code === this.localStationNo) {
+                                this.setState({ stationName: child.name || child.code });
+                                shouldUpdateCurrentStation = true;
+                            }
+                        }
+                    });
+                }
+                
+                this.setState({ devices });
+                
+                // 更新设备托盘字典
+                const { deviceTrayMap, operationMode } = this.updateDeviceTrayMap();
+                
+                // 从字典中提取托盘列表用于展示
+                const containers = Array.from(deviceTrayMap.values()).map(item => ({
+                    code: item.trayCode,
+                    location: item.location,
+                    deviceName: item.deviceName
+                }));
+
+                this.setState({ 
+                    containers, 
+                    operationMode,
+                    deviceTrayMap
+                });
+
+                // 关键：如果更新的是当前站台，必须检查并更新货物信息
+                if (shouldUpdateCurrentStation || deviceNo === this.localStationNo) {
+                    await this.checkCurrentStationTray();
+                }
             }
 
             // 手动刷新数据
@@ -964,16 +1055,22 @@
                 // 托盘数量
                 this.elements.trayCount.textContent = state.containers.length;
 
-                // 托盘列表（当前站台只有一个托盘）
+                // 托盘列表（纯展示，所有设备的托盘）
                 if (state.containers.length === 0) {
-                    this.elements.trayList.innerHTML = '<div class="loading">当前站台暂无托盘</div>';
+                    this.elements.trayList.innerHTML = '<div class="loading">当前暂无托盘</div>';
                     return;
                 }
                 
                 this.elements.trayList.innerHTML = state.containers.map(tray => {
-                    const classes = ['tray-item', 'active'];
-                    if (state.isLight) {
-                        classes.push('blink');
+                    // 检查是否是当前站台的托盘
+                    const isCurrentStation = state.currentContainer === tray.code;
+                    const classes = ['tray-item'];
+                    
+                    if (isCurrentStation) {
+                        classes.push('active');
+                        if (state.isLight) {
+                            classes.push('blink');
+                        }
                     }
                     
                     return `
@@ -1030,7 +1127,7 @@
             }
         }
 
-        // 移除了托盘选择功能，系统现在自动显示当前站台的托盘货物
+        // 系统纯展示模式，所有托盘信息自动更新，当前站台货物信息实时同步
 
         // 应用初始化
         document.addEventListener('DOMContentLoaded', () => {

@@ -447,6 +447,141 @@
             position: relative;
         }
 
+        /* 货物信息区域 */
+        .goods-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* 日志区域 */
+        .log-section {
+            height: 300px;
+            display: flex;
+            flex-direction: column;
+            background: var(--surface-elevated);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .log-header {
+            padding: 16px 24px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .log-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .log-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .log-filter {
+            background: var(--surface-glass);
+            border: 1px solid var(--border-color);
+            color: var(--on-surface-color);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .log-clear {
+            background: var(--surface-glass);
+            border: 1px solid var(--border-color);
+            color: var(--on-surface-color);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .log-clear:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--primary-color);
+        }
+
+        .log-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .log-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .log-container::-webkit-scrollbar-track {
+            background: var(--surface-color);
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        .log-entry {
+            padding: 4px 8px;
+            margin-bottom: 2px;
+            border-radius: 4px;
+            border-left: 3px solid transparent;
+            word-wrap: break-word;
+            transition: background-color 0.2s ease;
+        }
+
+        .log-entry:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .log-entry.info {
+            border-left-color: var(--primary-color);
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .log-entry.warn {
+            border-left-color: var(--warning-color);
+            background: rgba(255, 193, 7, 0.05);
+            color: var(--warning-color);
+        }
+
+        .log-entry.error {
+            border-left-color: var(--error-color);
+            background: rgba(255, 82, 82, 0.05);
+            color: var(--error-color);
+        }
+
+        .log-entry.success {
+            border-left-color: var(--success-color);
+            background: rgba(0, 230, 118, 0.05);
+            color: var(--success-color);
+        }
+
+        .log-timestamp {
+            color: var(--on-surface-muted);
+            font-weight: 500;
+        }
+
+        .log-level {
+            font-weight: 600;
+            margin: 0 8px;
+        }
+
+        .log-message {
+            color: var(--on-surface-color);
+        }
+
         .content-title {
             padding: 24px 32px;
             font-size: 20px;
@@ -680,16 +815,53 @@
 
             <!-- 主内容 -->
             <main class="main-content">
-                <div class="content-title">
-                    <span>当前站台货物信息</span>
-                    <span class="content-subtitle" id="current-container">站台暂无托盘</span>
-                </div>
-                <div class="goods-list" id="goods-list">
-                    <div class="empty-state">
-                        <div class="empty-state-icon">📦</div>
-                        <p>当前站台暂无托盘</p>
+                <!-- 货物信息区域 -->
+                <section class="goods-section">
+                    <div class="content-title">
+                        <span>当前站台货物信息</span>
+                        <span class="content-subtitle" id="current-container">站台暂无托盘</span>
                     </div>
-                </div>
+                    <div class="goods-list" id="goods-list">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">📦</div>
+                            <p>当前站台暂无托盘</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 日志区域 -->
+                <section class="log-section">
+                    <div class="log-header">
+                        <div class="log-title">系统日志</div>
+                        <div class="log-controls">
+                            <select class="log-filter" id="log-filter">
+                                <option value="all">全部</option>
+                                <option value="info">信息</option>
+                                <option value="warn">警告</option>
+                                <option value="error">错误</option>
+                                <option value="success">成功</option>
+                            </select>
+                            <button class="log-clear" id="log-clear">清空</button>
+                        </div>
+                    </div>
+                    <div class="log-container" id="log-container">
+                        <div class="log-entry info">
+                            <span class="log-timestamp">[12:34:56]</span>
+                            <span class="log-level">INFO</span>
+                            <span class="log-message">系统启动完成</span>
+                        </div>
+                        <div class="log-entry success">
+                            <span class="log-timestamp">[12:35:01]</span>
+                            <span class="log-level">SUCCESS</span>
+                            <span class="log-message">WMS连接成功</span>
+                        </div>
+                        <div class="log-entry warn">
+                            <span class="log-timestamp">[12:35:02]</span>
+                            <span class="log-level">WARN</span>
+                            <span class="log-message">设备 Tran3001 托盘信息为空</span>
+                        </div>
+                    </div>
+                </section>
             </main>
         </div>
     </div>
@@ -1325,11 +1497,20 @@
                 this.bindEvents();
                 this.startAnimations();
                 
+                // 日志管理
+                this.logs = [];
+                this.maxLogs = 500; // 最大日志条数
+                this.currentFilter = 'all';
+                
                 // 订阅状态变化
                 this.context.subscribe(state => this.render(state));
                 
                 // 初始渲染
                 this.render(this.context.getState());
+                
+                // 添加示例日志
+                this.addLog('info', '系统初始化完成');
+                this.addLog('success', 'WMS Dashboard 启动成功');
             }
 
             initializeElements() {
@@ -1352,7 +1533,10 @@
                     trayList: document.getElementById('tray-list'),
                     currentContainer: document.getElementById('current-container'),
                     goodsList: document.getElementById('goods-list'),
-                    starsContainer: document.getElementById('stars-container')
+                    starsContainer: document.getElementById('stars-container'),
+                    logContainer: document.getElementById('log-container'),
+                    logFilter: document.getElementById('log-filter'),
+                    logClear: document.getElementById('log-clear')
                 };
             }
 
@@ -1364,6 +1548,17 @@
                         e.preventDefault();
                         this.context.refreshData();
                     }
+                });
+
+                // 日志过滤
+                this.elements.logFilter.addEventListener('change', (e) => {
+                    this.currentFilter = e.target.value;
+                    this.renderLogs();
+                });
+
+                // 清空日志
+                this.elements.logClear.addEventListener('click', () => {
+                    this.clearLogs();
                 });
             }
 
@@ -1584,6 +1779,56 @@
                     </div>
                 `).join('');
             }
+
+            // 日志管理方法
+            addLog(level, message, data = null) {
+                const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+                const logEntry = {
+                    id: Date.now() + Math.random(),
+                    timestamp,
+                    level,
+                    message,
+                    data
+                };
+
+                this.logs.unshift(logEntry); // 新日志添加到顶部
+
+                // 限制日志数量
+                if (this.logs.length > this.maxLogs) {
+                    this.logs = this.logs.slice(0, this.maxLogs);
+                }
+
+                this.renderLogs();
+            }
+
+            renderLogs() {
+                const filteredLogs = this.currentFilter === 'all' 
+                    ? this.logs 
+                    : this.logs.filter(log => log.level === this.currentFilter);
+
+                this.elements.logContainer.innerHTML = filteredLogs.map(log => `
+                    <div class="log-entry ${log.level}">
+                        <span class="log-timestamp">[${log.timestamp}]</span>
+                        <span class="log-level">${log.level.toUpperCase()}</span>
+                        <span class="log-message">${log.message}</span>
+                        ${log.data ? `<div style="margin-top: 4px; font-size: 11px; opacity: 0.7;">${JSON.stringify(log.data)}</div>` : ''}
+                    </div>
+                `).join('');
+
+                // 自动滚动到底部（最新日志）
+                this.elements.logContainer.scrollTop = 0;
+            }
+
+            clearLogs() {
+                this.logs = [];
+                this.renderLogs();
+                this.addLog('info', '日志已清空');
+            }
+
+            // WebSocket日志接收方法（预留给后端WebSocket）
+            onWebSocketLog(logData) {
+                this.addLog(logData.level || 'info', logData.message, logData.data);
+            }
         }
 
         // 系统纯展示模式，所有托盘信息自动更新，当前站台货物信息实时同步
@@ -1601,6 +1846,29 @@
             window.wmsDashboardUI = ui;
             
             console.log('WMS Dashboard 已启动并连接到真实API');
+            
+            // 演示添加各种类型的日志
+            setTimeout(() => {
+                ui.addLog('info', 'WMS Dashboard 已启动并连接到真实API');
+                ui.addLog('success', 'SignalR连接建立成功');
+            }, 1000);
+            
+            // 演示定时添加日志（模拟实时日志）
+            let counter = 1;
+            setInterval(() => {
+                const logTypes = ['info', 'warn', 'error', 'success'];
+                const messages = [
+                    '设备状态更新',
+                    '托盘位置变更',
+                    '网络连接检测',
+                    '数据同步完成'
+                ];
+                
+                const randomType = logTypes[Math.floor(Math.random() * logTypes.length)];
+                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+                
+                ui.addLog(randomType, `${randomMessage} #${counter++}`);
+            }, 5000); // 每5秒添加一条模拟日志
 
             // 页面卸载时断开连接
             window.addEventListener('beforeunload', () => {

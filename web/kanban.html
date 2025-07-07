@@ -546,26 +546,30 @@
         }
 
         .log-entry.info {
-            border-left-color: var(--primary-color);
-            background: rgba(0, 212, 255, 0.05);
+            border-left-color: #67c23a;
+            background: rgba(103, 194, 58, 0.05);
         }
 
-        .log-entry.warn {
-            border-left-color: var(--warning-color);
-            background: rgba(255, 193, 7, 0.05);
-            color: var(--warning-color);
+        .log-entry.info .log-message {
+            color: #67c23a;
+        }
+
+        .log-entry.warning {
+            border-left-color: #e6a23c;
+            background: rgba(230, 162, 60, 0.05);
+        }
+
+        .log-entry.warning .log-message {
+            color: #e6a23c;
         }
 
         .log-entry.error {
-            border-left-color: var(--error-color);
-            background: rgba(255, 82, 82, 0.05);
-            color: var(--error-color);
+            border-left-color: #f56c6c;
+            background: rgba(245, 108, 108, 0.05);
         }
 
-        .log-entry.success {
-            border-left-color: var(--success-color);
-            background: rgba(0, 230, 118, 0.05);
-            color: var(--success-color);
+        .log-entry.error .log-message {
+            color: #f56c6c;
         }
 
         .log-timestamp {
@@ -1321,6 +1325,13 @@
                         this.afterDeviceDataUpdate(deviceNo, newInfo);
                     });
 
+                    // 日志事件（对应WCS系统的logger事件）
+                    this.signalRConnection.on("logger", (logMessage) => {
+                        if (window.wmsDashboardUI) {
+                            window.wmsDashboardUI.onWebSocketLog(logMessage);
+                        }
+                    });
+
                     // 连接状态事件
                     this.signalRConnection.onreconnecting(() => {
                         this.setState({ wcsConnectionStatus: 'reconnecting' });
@@ -1508,9 +1519,9 @@
                 // 初始渲染
                 this.render(this.context.getState());
                 
-                // 添加示例日志
-                this.addLog('info', '系统初始化完成');
-                this.addLog('success', 'WMS Dashboard 启动成功');
+                // 添加示例日志（符合WCS系统格式）
+                this.addLog(2, 'WMS Dashboard 启动完成', 'WMS.System');
+                this.addLog(2, 'SignalR连接已建立', 'WCS.Connection');
             }
 
             initializeElements() {
@@ -1781,42 +1792,68 @@
             }
 
             // 日志管理方法
-            addLog(level, message, data = null) {
-                const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+            addLog(logLevel, message, categoryName = '系统', data = null) {
+                const now = new Date();
+                const time = now.toLocaleTimeString('zh-CN', { hour12: false });
                 const logEntry = {
                     id: Date.now() + Math.random(),
-                    timestamp,
-                    level,
+                    time,
+                    categoryName,
                     message,
+                    logLevel: typeof logLevel === 'string' ? this.mapLevelToNumber(logLevel) : logLevel,
                     data
                 };
 
-                this.logs.unshift(logEntry); // 新日志添加到顶部
+                this.logs.push(logEntry); // 新日志添加到底部
 
-                // 限制日志数量
+                // 限制日志数量，删除最旧的日志
                 if (this.logs.length > this.maxLogs) {
-                    this.logs = this.logs.slice(0, this.maxLogs);
+                    this.logs = this.logs.slice(-this.maxLogs);
                 }
 
                 this.renderLogs();
             }
 
+            // 将字符串级别映射为数字
+            mapLevelToNumber(level) {
+                const levelMap = {
+                    'info': 2,
+                    'success': 2,
+                    'warn': 3,
+                    'warning': 3,
+                    'error': 4
+                };
+                return levelMap[level] || 2;
+            }
+
+            // 将数字级别映射为CSS类名
+            mapLogLevel(logLevel) {
+                switch(logLevel) {
+                    case 2: return 'info';
+                    case 3: return 'warning';
+                    case 4: return 'error';
+                    default: return 'info';
+                }
+            }
+
             renderLogs() {
                 const filteredLogs = this.currentFilter === 'all' 
                     ? this.logs 
-                    : this.logs.filter(log => log.level === this.currentFilter);
+                    : this.logs.filter(log => this.mapLogLevel(log.logLevel) === this.currentFilter);
 
                 this.elements.logContainer.innerHTML = filteredLogs.map(log => `
-                    <div class="log-entry ${log.level}">
-                        <span class="log-timestamp">[${log.timestamp}]</span>
-                        <span class="log-level">${log.level.toUpperCase()}</span>
-                        <span class="log-message">${log.message}</span>
-                        ${log.data ? `<div style="margin-top: 4px; font-size: 11px; opacity: 0.7;">${JSON.stringify(log.data)}</div>` : ''}
+                    <div class="log-entry ${this.mapLogLevel(log.logLevel)}">
+                        <div style="color: #606266; font-size: 11px; margin-bottom: 2px;">
+                            [${log.time}] ${log.categoryName || '系统'}
+                        </div>
+                        <div class="log-message">
+                            ${log.message}
+                        </div>
                     </div>
                 `).join('');
 
-                // 自动滚动到底部（最新日志）
-                this.elements.logContainer.scrollTop = 0;
+                // 自动滚动到底部（最新日志在顶部，但容器滚动到底部显示最旧的）
+                this.elements.logContainer.scrollTop = this.elements.logContainer.scrollHeight;
             }
 
             clearLogs() {
@@ -1825,9 +1862,10 @@
                 this.addLog('info', '日志已清空');
             }
 
-            // WebSocket日志接收方法（预留给后端WebSocket）
+            // WebSocket日志接收方法（对应WCS系统的logger事件）
             onWebSocketLog(logData) {
-                this.addLog(logData.level || 'info', logData.message, logData.data);
+                // logData 格式: { time, categoryName, message, logLevel }
+                this.addLog(logData.logLevel || 2, logData.message, logData.categoryName || '系统', logData.data);
             }
         }
 
@@ -1849,26 +1887,28 @@
             
             // 演示添加各种类型的日志
             setTimeout(() => {
-                ui.addLog('info', 'WMS Dashboard 已启动并连接到真实API');
-                ui.addLog('success', 'SignalR连接建立成功');
+                ui.addLog(2, 'WMS API连接成功', 'WMS.API');
+                ui.addLog(2, 'WCS SignalR连接建立', 'WCS.SignalR');
+                ui.addLog(2, '设备初始化完成', 'Device.Init');
             }, 1000);
             
-            // 演示定时添加日志（模拟实时日志）
+            // 演示定时添加日志（模拟WCS实时日志）
             let counter = 1;
             setInterval(() => {
-                const logTypes = ['info', 'warn', 'error', 'success'];
-                const messages = [
-                    '设备状态更新',
-                    '托盘位置变更',
-                    '网络连接检测',
-                    '数据同步完成'
+                const logData = [
+                    { level: 2, message: '设备状态正常', category: 'Device.Status' },
+                    { level: 2, message: '托盘到达站台', category: 'Transport.Tray' },
+                    { level: 3, message: '网络延迟较高', category: 'Network.Monitor' },
+                    { level: 2, message: '任务执行完成', category: 'Task.Execute' },
+                    { level: 3, message: '设备空闲时间过长', category: 'Device.Monitor' },
+                    { level: 2, message: '库存数据同步', category: 'WMS.Sync' },
+                    { level: 4, message: '设备通信超时', category: 'Device.Error' },
+                    { level: 2, message: '托盘位置更新', category: 'Transport.Position' }
                 ];
                 
-                const randomType = logTypes[Math.floor(Math.random() * logTypes.length)];
-                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-                
-                ui.addLog(randomType, `${randomMessage} #${counter++}`);
-            }, 5000); // 每5秒添加一条模拟日志
+                const randomLog = logData[Math.floor(Math.random() * logData.length)];
+                ui.addLog(randomLog.level, `${randomLog.message} [${counter++}]`, randomLog.category);
+            }, 8000); // 每8秒添加一条模拟日志
 
             // 页面卸载时断开连接
             window.addEventListener('beforeunload', () => {

@@ -1885,30 +1885,6 @@
             
             console.log('WMS Dashboard 已启动并连接到真实API');
             
-            // 演示添加各种类型的日志
-            setTimeout(() => {
-                ui.addLog(2, 'WMS API连接成功', 'WMS.API');
-                ui.addLog(2, 'WCS SignalR连接建立', 'WCS.SignalR');
-                ui.addLog(2, '设备初始化完成', 'Device.Init');
-            }, 1000);
-            
-            // 演示定时添加日志（模拟WCS实时日志）
-            let counter = 1;
-            setInterval(() => {
-                const logData = [
-                    { level: 2, message: '设备状态正常', category: 'Device.Status' },
-                    { level: 2, message: '托盘到达站台', category: 'Transport.Tray' },
-                    { level: 3, message: '网络延迟较高', category: 'Network.Monitor' },
-                    { level: 2, message: '任务执行完成', category: 'Task.Execute' },
-                    { level: 3, message: '设备空闲时间过长', category: 'Device.Monitor' },
-                    { level: 2, message: '库存数据同步', category: 'WMS.Sync' },
-                    { level: 4, message: '设备通信超时', category: 'Device.Error' },
-                    { level: 2, message: '托盘位置更新', category: 'Transport.Position' }
-                ];
-                
-                const randomLog = logData[Math.floor(Math.random() * logData.length)];
-                ui.addLog(randomLog.level, `${randomLog.message} [${counter++}]`, randomLog.category);
-            }, 8000); // 每8秒添加一条模拟日志
 
             // 页面卸载时断开连接
             window.addEventListener('beforeunload', () => {

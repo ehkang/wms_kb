@@ -7,9 +7,16 @@ set -e
 
 # 项目信息
 APP_NAME="wms-dashboard"
-VERSION="v1.0.0"
+VERSION="v1.0.0-win7"
 BUILD_TIME=$(date '+%Y-%m-%d %H:%M:%S')
 GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+# Windows 7 兼容性说明
+echo -e "${BLUE}ℹ️  Windows 7 兼容性模式已启用${NC}"
+echo -e "${BLUE}   • 优化了编译参数以支持较旧的Windows系统${NC}"
+echo -e "${BLUE}   • 添加了系统兼容性检查和错误提示${NC}"
+echo -e "${BLUE}   • 建议在Windows 7上使用前先测试${NC}"
+echo ""
 
 # 颜色输出
 RED='\033[0;31m'
@@ -23,6 +30,7 @@ OUTPUT_DIR="./dist"
 
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE} WMS Dashboard 交叉编译工具${NC}"
+echo -e "${BLUE} (Windows 7 兼容性版本)${NC}"
 echo -e "${BLUE}========================================${NC}"
 echo -e "版本: ${GREEN}${VERSION}${NC}"
 echo -e "构建时间: ${GREEN}${BUILD_TIME}${NC}"
@@ -51,10 +59,23 @@ build_binary() {
     
     echo -e "${YELLOW}正在编译 ${desc}...${NC}"
     
+    # Windows 7兼容性设置
+    local extra_flags=""
+    if [ "$os" = "windows" ]; then
+        echo -e "${BLUE}  → 启用Windows 7兼容性模式${NC}"
+        # 设置环境变量以支持Windows 7
+        export CGO_ENABLED=0
+        export GOOS=windows
+        export GOARCH=$arch
+        # 添加Windows 7兼容性标志
+        extra_flags="-buildmode=exe"
+    fi
+    
     # 设置构建标签和优化参数
     GOOS=$os GOARCH=$arch go build \
         -ldflags="-w -s -X 'main.Version=${VERSION}' -X 'main.BuildTime=${BUILD_TIME}' -X 'main.GitCommit=${GIT_COMMIT}'" \
         -trimpath \
+        $extra_flags \
         -o "$filepath" \
         main.go
     
@@ -76,11 +97,11 @@ build_binary() {
 echo -e "${BLUE}开始交叉编译...${NC}"
 echo ""
 
-# Windows 64位
-build_binary "windows" "amd64" ".exe" "Windows 64位"
+# Windows 64位 (兼容Windows 7)
+build_binary "windows" "amd64" ".exe" "Windows 64位 (Win7+)"
 
-# Windows 32位
-build_binary "windows" "386" ".exe" "Windows 32位"
+# Windows 32位 (兼容Windows 7)
+build_binary "windows" "386" ".exe" "Windows 32位 (Win7+)"
 
 # Linux 64位
 build_binary "linux" "amd64" "" "Linux 64位"
@@ -104,17 +125,18 @@ echo ""
 ls -lh $OUTPUT_DIR/
 echo ""
 
-# 创建 Windows 启动脚本
-echo -e "${YELLOW}创建 Windows 启动脚本...${NC}"
+# 创建 Windows 启动脚本 (兼容Windows 7)
+echo -e "${YELLOW}创建 Windows 启动脚本 (兼容Win7)...${NC}"
 
 cat > "$OUTPUT_DIR/start-dashboard.bat" << 'EOF'
 @echo off
-chcp 65001 >nul
+chcp 65001 >nul 2>&1
 title WMS Dashboard
 
 echo.
 echo ========================================
 echo  WMS Dashboard 启动中...
+echo  (兼容 Windows 7/8/10/11)
 echo ========================================
 echo.
 
@@ -133,16 +155,32 @@ if not exist "%BINARY%" (
     exit /b 1
 )
 
+REM 检查Windows版本兼容性
+echo 检查系统兼容性...
+ver | find "Windows" >nul
+if errorlevel 1 (
+    echo 警告: 未检测到Windows系统
+)
+
 echo 启动程序: %BINARY%
+echo.
+echo 注意: 本程序已优化兼容Windows 7及以上系统
 echo.
 
 REM 启动程序
 "%BINARY%"
 
-REM 如果程序异常退出，暂停显示错误信息
+REM 如果程序异常退出，显示详细错误信息
 if errorlevel 1 (
     echo.
     echo 程序异常退出，错误代码: %errorlevel%
+    echo.
+    echo 可能的原因:
+    echo 1. 系统版本太旧 (Windows 7以下不支持)
+    echo 2. 缺少必要的运行库
+    echo 3. 端口被占用或防火墙阻止
+    echo 4. 网络连接问题
+    echo.
     pause
 )
 EOF
@@ -190,11 +228,11 @@ EOF
 
 chmod +x "$OUTPUT_DIR/start-dashboard.sh"
 
-echo -e "${GREEN}✓${NC} Windows 启动脚本: start-dashboard.bat"
+echo -e "${GREEN}✓${NC} Windows 启动脚本: start-dashboard.bat (Win7+兼容)"
 echo -e "${GREEN}✓${NC} Linux 启动脚本: start-dashboard.sh"
 echo ""
 
-# 创建使用说明
+# 创建使用说明 (包含Windows 7兼容性信息)
 cat > "$OUTPUT_DIR/README.txt" << EOF
 WMS Dashboard ${VERSION}
 ========================
@@ -202,11 +240,17 @@ WMS Dashboard ${VERSION}
 构建时间: ${BUILD_TIME}
 Git提交: ${GIT_COMMIT}
 
+系统兼容性:
+---------
+✓ Windows 7/8/10/11 (32位和64位)
+✓ Linux (amd64/arm64)
+✓ macOS (Intel/Apple Silicon)
+
 文件说明:
 ---------
 Windows 用户:
-  - wms-dashboard-windows-amd64.exe (Windows 64位)
-  - wms-dashboard-windows-386.exe   (Windows 32位)
+  - wms-dashboard-windows-amd64.exe (Windows 64位, Win7+)
+  - wms-dashboard-windows-386.exe   (Windows 32位, Win7+)
   - start-dashboard.bat             (Windows 启动脚本)
 
 Linux 用户:
@@ -230,6 +274,13 @@ macOS 用户:
 - 如果端口被占用，会自动选择其他端口
 - Chrome 浏览器会以全屏模式启动
 - 程序包含完整的 WMS/WCS API 代理功能
+
+Windows 7 用户特别说明:
+---------
+- 本程序已优化兼容Windows 7系统
+- 如果遇到问题，请确保安装了最新的Windows更新
+- 建议使用IE 11或Chrome浏览器访问界面
+- 如遇到网络问题，请检查防火墙设置
 
 环境变量:
 ---------

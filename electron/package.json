@@ -1,0 +1,29 @@
+{
+  "name": "wms-dashboard-electron",
+  "version": "1.0.0",
+  "description": "WMS Dashboard - 仓储管理系统桌面版 (兼容Windows 7)",
+  "main": "src/main.js",
+  "author": "WMS Team",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-packager . --platform=win32 --arch=x64 --out=dist --overwrite",
+    "build:win32": "electron-packager . --platform=win32 --arch=ia32 --out=dist --overwrite",
+    "build:win64": "electron-packager . --platform=win32 --arch=x64 --out=dist --overwrite",
+    "build:all": "npm run build:win32 && npm run build:win64",
+    "pack": "./scripts/manual-pack.sh",
+    "prepare-libs": "node scripts/download-libs.js"
+  },
+  "devDependencies": {
+    "electron": "^22.3.27",
+    "electron-packager": "^17.1.2"
+  },
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

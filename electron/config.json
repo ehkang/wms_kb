@@ -1,0 +1,4 @@
+{
+  "station": "Tran3001",
+  "comment": "修改 station 的值来切换监控的站台，如 Tran3001, Tran3002, Tran3003, Tran3004"
+}

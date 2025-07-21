@@ -15,6 +15,23 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
-    plugins: [vue()]
+    plugins: [vue()],
+    server: {
+      proxy: {
+        '/api/warehouse': {
+          target: 'http://10.20.88.14:8008',
+          changeOrigin: true,
+          },
+        '/api/WCS': {
+          target: 'http://10.20.88.14:8009',
+          changeOrigin: true,
+        },
+        '/hubs/wcsHub': {
+          target: 'http://10.20.88.14:8009',
+          changeOrigin: true,
+          ws: true
+        }
+      }
+    }
   }
 })

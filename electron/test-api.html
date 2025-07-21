@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API 测试</title>
+    <meta charset="utf-8">
+</head>
+<body>
+    <h1>WMS/WCS API 测试</h1>
+    <button onclick="testWCS()">测试 WCS API</button>
+    <button onclick="testWMS()">测试 WMS API</button>
+    <pre id="result"></pre>
+
+    <script>
+        const result = document.getElementById('result');
+        
+        async function testWCS() {
+            try {
+                result.textContent = '正在测试 WCS API...\n';
+                
+                // 测试获取设备信息
+                const response = await fetch('http://10.20.88.14:8009/api/WCS/getDevice/Crn2002');
+                const data = await response.json();
+                
+                result.textContent += 'WCS API 响应:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.textContent += 'WCS API 错误: ' + error.message;
+            }
+        }
+        
+        async function testWMS() {
+            try {
+                result.textContent = '正在测试 WMS API...\n';
+                
+                // 测试获取容器信息
+                const response = await fetch('http://10.20.88.14:8008/api/warehouse/Inventory/container/TEST001');
+                const data = await response.json();
+                
+                result.textContent += 'WMS API 响应:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                result.textContent += 'WMS API 错误: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

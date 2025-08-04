@@ -13,25 +13,25 @@
         <div class="connection-status">
           <span class="status-label">WMS:</span>
           <div class="status-dot" :class="getStatusClass(wmsConnectionStatus)"></div>
-          <span>{{ getStatusText(wmsConnectionStatus) }}</span>
+          <span :style="{ color: wmsConnectionStatus === 'connected' ? '#00e676' : wmsConnectionStatus === 'connecting' || wmsConnectionStatus === 'reconnecting' ? '#ffab00' : '#ff5252' }">{{ getStatusText(wmsConnectionStatus) }}</span>
         </div>
         <div class="connection-status">
           <span class="status-label">WCS:</span>
           <div class="status-dot" :class="getStatusClass(wcsConnectionStatus)"></div>
-          <span>{{ getStatusText(wcsConnectionStatus) }}</span>
+          <span :style="{ color: wcsConnectionStatus === 'connected' ? '#00e676' : wcsConnectionStatus === 'connecting' || wcsConnectionStatus === 'reconnecting' ? '#ffab00' : '#ff5252' }">{{ getStatusText(wcsConnectionStatus) }}</span>
         </div>
         <div class="coordinates-display">
           <div class="coordinate-item">
             <div class="coordinate-label">{{ devices['Crn2001']?.name || '堆垛机001' }}:</div>
-            <div class="coordinate-value">{{ getCrn2001Coords() }}</div>
+            <div class="coordinate-value" style="color: #b3e5fc;">{{ getCrn2001Coords() }}</div>
           </div>
           <div class="coordinate-item">
             <div class="coordinate-label">{{ devices['Crn2002']?.name || '堆垛机002' }}:</div>
-            <div class="coordinate-value">{{ getCrn2002Coords() }}</div>
+            <div class="coordinate-value" style="color: #b3e5fc;">{{ getCrn2002Coords() }}</div>
           </div>
           <div class="coordinate-item">
             <div class="coordinate-label">{{ devices['RGV01']?.name || '穿梭车' }}:</div>
-            <div class="coordinate-value">{{ getRgv01Coords() }}</div>
+            <div class="coordinate-value" style="color: #b3e5fc;">{{ getRgv01Coords() }}</div>
           </div>
         </div>
       </div>
@@ -57,7 +57,7 @@
             }"
           >
             {{ tray.code }}
-            <div class="tray-item-location">{{ tray.location }}</div>
+            <div class="tray-item-location" style="color: #90a4ae;">{{ tray.location }}</div>
           </div>
         </div>
       </aside>
@@ -83,15 +83,15 @@
                   class="goods-card"
                 >
                   <div class="goods-card-header">
-                    <span class="goods-no">{{ goods.goodsNo || 'N/A' }}</span>
+                    <span class="goods-no" style="color: #00d4ff;">{{ goods.goodsNo || 'N/A' }}</span>
                   </div>
                   <div class="goods-card-body">
                     <div class="goods-name">{{ goods.goodsName || '未知商品' }}</div>
-                    <div class="goods-spec">{{ goods.goodsSpec || '-' }}</div>
+                    <div class="goods-spec" style="color: #b3e5fc;">{{ goods.goodsSpec || '-' }}</div>
                   </div>
                   <div class="goods-card-footer">
-                    <span class="goods-quantity">{{ Math.floor(goods.quantity) || 0 }}</span>
-                    <span class="goods-unit">{{ goods.unit || '件' }}</span>
+                    <span class="goods-quantity" style="color: #00e676;">{{ Math.floor(goods.quantity) || 0 }}</span>
+                    <span class="goods-unit" style="color: #90a4ae;">{{ goods.unit || '件' }}</span>
                   </div>
                 </div>
               </div>
@@ -221,6 +221,17 @@ const getStatusText = (status: string) => {
     'error': '错误'
   }
   return statusMap[status] || '未知'
+}
+
+const getStatusColor = (status: string) => {
+  const colorMap = {
+    'connecting': 'var(--warning-color-bright)',
+    'connected': 'var(--success-color)',
+    'reconnecting': 'var(--warning-color-bright)',
+    'disconnected': 'var(--error-color)',
+    'error': 'var(--error-color)'
+  }
+  return colorMap[status] || 'var(--text-muted)'
 }
 
 const getCrn2001Coords = () => {
@@ -406,6 +417,9 @@ document.addEventListener('keydown', (e) => {
   --error-color: #ff5252;
   --success-color: #00e676;
   --warning-color: #ffc107;
+  --warning-color-bright: #ffab00;
+  --text-secondary: #b3e5fc;
+  --text-muted: #90a4ae;
   --card-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
   --border-color: rgba(255, 255, 255, 0.1);
   --shadow-color: rgba(0, 0, 0, 0.3);
@@ -569,7 +583,7 @@ document.addEventListener('keydown', (e) => {
 
 .coordinate-value {
   font-weight: 600;
-  color: var(--on-surface-color);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
@@ -758,10 +772,10 @@ document.addEventListener('keydown', (e) => {
 
 .tray-item-location {
   font-size: 14px;
-  color: var(--on-surface-muted);
+  color: var(--text-muted);
   margin-top: 4px;
   font-weight: 400;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .tray-item.active .tray-item-location {
@@ -1021,7 +1035,7 @@ document.addEventListener('keydown', (e) => {
 
 .goods-spec {
   font-size: 16px;
-  color: var(--on-surface-muted);
+  color: var(--text-secondary);
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1046,7 +1060,7 @@ document.addEventListener('keydown', (e) => {
 
 .goods-unit {
   font-size: 16px;
-  color: var(--on-surface-muted);
+  color: var(--text-muted);
   font-weight: 400;
 }
 

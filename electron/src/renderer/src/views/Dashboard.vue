@@ -123,7 +123,7 @@
               class="log-entry"
               :class="mapLogLevel(log.logLevel)"
             >
-              <div style="color: #606266; font-size: 14px; margin-bottom: 4px;">
+              <div style="color: #606266; font-size: 10px; margin-bottom: 1px;">
                 [{{ log.time }}] {{ log.categoryName || '系统' }}
               </div>
               <div class="log-message">
@@ -783,22 +783,22 @@ document.addEventListener('keydown', (e) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 40px;
+  padding: 30px;
   min-height: 0;
 }
 
 /* 日志区域 */
 .log-section {
-  height: 180px;
+  height: 150px;
   display: flex;
   flex-direction: column;
   background: var(--surface-elevated);
-  border-top: 2px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
   flex-shrink: 0;
 }
 
 .log-header {
-  padding: 12px 24px;
+  padding: 6px 16px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -807,7 +807,7 @@ document.addEventListener('keydown', (e) => {
 }
 
 .log-title {
-  font-size: 16px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--primary-color);
 }
@@ -822,18 +822,18 @@ document.addEventListener('keydown', (e) => {
   background: var(--surface-glass);
   border: 1px solid var(--border-color);
   color: var(--on-surface-color);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
 }
 
 .log-clear {
   background: var(--surface-glass);
   border: 1px solid var(--border-color);
   color: var(--on-surface-color);
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 10px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
@@ -846,10 +846,10 @@ document.addEventListener('keydown', (e) => {
 .log-container {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 24px;
+  padding: 6px 16px;
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 14px;
-  line-height: 1.4;
+  font-size: 12px;
+  line-height: 1.2;
 }
 
 .log-container::-webkit-scrollbar {
@@ -866,10 +866,10 @@ document.addEventListener('keydown', (e) => {
 }
 
 .log-entry {
-  padding: 4px 8px;
-  margin-bottom: 2px;
-  border-radius: 4px;
-  border-left: 3px solid transparent;
+  padding: 2px 6px;
+  margin-bottom: 1px;
+  border-radius: 3px;
+  border-left: 2px solid transparent;
   word-wrap: break-word;
   transition: background-color 0.2s ease;
 }
@@ -907,6 +907,7 @@ document.addEventListener('keydown', (e) => {
 
 .log-message {
   color: var(--on-surface-color);
+  font-size: 11px;
 }
 
 
@@ -921,9 +922,11 @@ document.addEventListener('keydown', (e) => {
 
 /* 网格容器 */
 .goods-grid-container {
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+  justify-content: center;
 }
 
 /* 5x2 网格布局 */
@@ -931,25 +934,26 @@ document.addEventListener('keydown', (e) => {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   grid-template-rows: repeat(2, 1fr);
-  gap: 24px;
+  gap: 20px;
   width: 100%;
-  max-width: 1600px;
   height: 100%;
-  max-height: 600px;
 }
 
 /* 货物卡片 */
 .goods-card {
-  background: var(--card-bg);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.5),
+              -2px -2px 8px rgba(255, 255, 255, 0.05),
+              inset 1px 1px 2px rgba(255, 255, 255, 0.1);
 }
 
 .goods-card::before {
@@ -965,10 +969,13 @@ document.addEventListener('keydown', (e) => {
 }
 
 .goods-card:hover {
-  background: rgba(0, 212, 255, 0.05);
+  background: linear-gradient(145deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.02));
   border-color: var(--primary-color);
-  box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1);
-  transform: translateY(-4px);
+  box-shadow: 6px 6px 20px rgba(0, 0, 0, 0.6),
+              -3px -3px 12px rgba(0, 212, 255, 0.1),
+              inset 1px 1px 2px rgba(0, 212, 255, 0.2),
+              0 0 20px rgba(0, 212, 255, 0.2);
+  transform: translateY(-4px) scale(1.02);
 }
 
 .goods-card:hover::before {
@@ -978,12 +985,12 @@ document.addEventListener('keydown', (e) => {
 /* 卡片头部 - 货物编号 */
 .goods-card-header {
   text-align: center;
-  padding-bottom: 12px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--border-color);
 }
 
 .goods-no {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--primary-color);
   letter-spacing: 0.5px;
@@ -995,16 +1002,16 @@ document.addEventListener('keydown', (e) => {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 16px 0;
+  padding: 4px 0;
 }
 
 .goods-name {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 500;
   color: var(--on-surface-color);
-  margin-bottom: 8px;
+  margin-bottom: 2px;
   text-align: center;
-  line-height: 1.3;
+  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -1013,7 +1020,7 @@ document.addEventListener('keydown', (e) => {
 }
 
 .goods-spec {
-  font-size: 18px;
+  font-size: 16px;
   color: var(--on-surface-muted);
   text-align: center;
   overflow: hidden;
@@ -1026,19 +1033,19 @@ document.addEventListener('keydown', (e) => {
   display: flex;
   justify-content: center;
   align-items: baseline;
-  padding-top: 12px;
+  padding-top: 4px;
   border-top: 1px solid var(--border-color);
 }
 
 .goods-quantity {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 700;
   color: var(--success-color);
   margin-right: 8px;
 }
 
 .goods-unit {
-  font-size: 18px;
+  font-size: 16px;
   color: var(--on-surface-muted);
   font-weight: 400;
 }

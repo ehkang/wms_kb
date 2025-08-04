@@ -78,7 +78,7 @@
             <div v-else class="goods-grid-container">
               <div class="goods-grid">
                 <div 
-                  v-for="(goods, index) in localGoods.slice(0, 10)" 
+                  v-for="goods in localGoods.slice(0, 10)" 
                   :key="goods.goodsNo"
                   class="goods-card"
                 >
@@ -138,7 +138,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import { useWMSStore } from '../stores/wms'
 import { HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr'
 import type { HubConnection } from '@microsoft/signalr'
@@ -223,16 +223,7 @@ const getStatusText = (status: string) => {
   return statusMap[status] || '未知'
 }
 
-const getStatusColor = (status: string) => {
-  const colorMap = {
-    'connecting': 'var(--warning-color-bright)',
-    'connected': 'var(--success-color)',
-    'reconnecting': 'var(--warning-color-bright)',
-    'disconnected': 'var(--error-color)',
-    'error': 'var(--error-color)'
-  }
-  return colorMap[status] || 'var(--text-muted)'
-}
+// getStatusColor 函数已不再使用，因为改用内联样式
 
 const getCrn2001Coords = () => {
   const crn2001 = devices.value['Crn2001']
@@ -356,7 +347,7 @@ const initSignalR = async () => {
   } catch (error) {
     console.error("SignalR连接失败:", error)
     wmsStore.setWcsConnectionStatus('error')
-    addLog(4, `WebSocket连接失败: ${error.message}`, 'WCS.Connection')
+    addLog(4, `WebSocket连接失败: ${(error as Error).message}`, 'WCS.Connection')
   }
 }
 

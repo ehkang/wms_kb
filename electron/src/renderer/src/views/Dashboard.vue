@@ -66,12 +66,6 @@
       <main class="main-content">
         <!-- 货物信息区域 -->
         <section class="goods-section">
-          <div class="content-title">
-            <span>当前站台货物信息</span>
-            <span class="content-subtitle">
-              {{ currentContainer ? `当前托盘: ${currentContainer}` : '当前站台暂无托盘' }}
-            </span>
-          </div>
           <div class="goods-list">
             <div v-if="isLoading" class="loading">加载货物信息...</div>
             <div v-else-if="errorMessage && localGoods.length === 0" class="error-message">
@@ -79,19 +73,30 @@
             </div>
             <div v-else-if="localGoods.length === 0" class="empty-state">
               <div class="empty-state-icon">📦</div>
-              <p>{{ currentContainer ? '该托盘暂无货物' : '当前站台暂无托盘' }}</p>
+              <p class="empty-state-text">{{ currentContainer ? '该托盘暂无货物' : '当前站台暂无托盘' }}</p>
             </div>
-            <div v-else>
-              <div v-for="goods in localGoods" :key="goods.goodsNo" class="goods-card">
-                <div class="goods-no">{{ goods.goodsNo || 'N/A' }}</div>
-                <div class="goods-info">
-                  <div class="goods-name">{{ goods.goodsName || '未知商品' }}</div>
-                  <div class="goods-spec">{{ goods.goodsSpec || '' }}</div>
+            <div v-else class="goods-grid-container">
+              <div class="goods-grid">
+                <div 
+                  v-for="(goods, index) in localGoods.slice(0, 10)" 
+                  :key="goods.goodsNo"
+                  class="goods-card"
+                >
+                  <div class="goods-card-header">
+                    <span class="goods-no">{{ goods.goodsNo || 'N/A' }}</span>
+                  </div>
+                  <div class="goods-card-body">
+                    <div class="goods-name">{{ goods.goodsName || '未知商品' }}</div>
+                    <div class="goods-spec">{{ goods.goodsSpec || '-' }}</div>
+                  </div>
+                  <div class="goods-card-footer">
+                    <span class="goods-quantity">{{ Math.floor(goods.quantity) || 0 }}</span>
+                    <span class="goods-unit">{{ goods.unit || '件' }}</span>
+                  </div>
                 </div>
-                <div class="goods-quantity">
-                  <span class="quantity-value">{{ Math.floor(goods.quantity) || 0 }}</span>
-                  <span class="quantity-unit">{{ goods.unit || '件' }}</span>
-                </div>
+              </div>
+              <div v-if="localGoods.length > 10" class="more-goods-hint">
+                ... 还有 {{ localGoods.length - 10 }} 种货物
               </div>
             </div>
           </div>
@@ -118,7 +123,7 @@
               class="log-entry"
               :class="mapLogLevel(log.logLevel)"
             >
-              <div style="color: #606266; font-size: 11px; margin-bottom: 2px;">
+              <div style="color: #606266; font-size: 14px; margin-bottom: 4px;">
                 [{{ log.time }}] {{ log.categoryName || '系统' }}
               </div>
               <div class="log-message">
@@ -631,7 +636,8 @@ document.addEventListener('keydown', (e) => {
 
 /* 托盘信息显示 */
 .tray-info {
-  width: 320px;
+  width: 380px;
+  max-width: 20%;
   background: var(--card-bg);
   backdrop-filter: blur(20px);
   border-right: 1px solid var(--border-color);
@@ -673,10 +679,10 @@ document.addEventListener('keydown', (e) => {
 .tray-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .tray-list::-webkit-scrollbar {
@@ -699,7 +705,8 @@ document.addEventListener('keydown', (e) => {
 .tray-item {
   background: var(--surface-glass);
   backdrop-filter: blur(10px);
-  padding: 16px;
+  padding: 12px 16px;
+  min-height: 70px;
   border-radius: 12px;
   text-align: left;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -707,6 +714,8 @@ document.addEventListener('keydown', (e) => {
   position: relative;
   cursor: pointer;
   overflow: hidden;
+  font-size: 18px;
+  font-weight: 500;
 }
 
 .tray-item::before {
@@ -748,9 +757,9 @@ document.addEventListener('keydown', (e) => {
 }
 
 .tray-item-location {
-  font-size: 11px;
+  font-size: 14px;
   color: var(--on-surface-muted);
-  margin-top: 6px;
+  margin-top: 4px;
   font-weight: 400;
   opacity: 0.8;
 }
@@ -774,20 +783,22 @@ document.addEventListener('keydown', (e) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--border-color);
+  padding: 40px;
+  min-height: 0;
 }
 
 /* 日志区域 */
 .log-section {
-  height: 300px;
+  height: 180px;
   display: flex;
   flex-direction: column;
   background: var(--surface-elevated);
-  border-top: 1px solid var(--border-color);
+  border-top: 2px solid var(--border-color);
+  flex-shrink: 0;
 }
 
 .log-header {
-  padding: 16px 24px;
+  padding: 12px 24px;
   background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -835,9 +846,9 @@ document.addEventListener('keydown', (e) => {
 .log-container {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 12px 24px;
   font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.4;
 }
 
@@ -898,97 +909,149 @@ document.addEventListener('keydown', (e) => {
   color: var(--on-surface-color);
 }
 
-.content-title {
-  padding: 24px 32px;
-  font-size: 20px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--border-color);
-  color: var(--on-surface-color);
-  letter-spacing: -0.01em;
-  position: relative;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.content-title::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 32px;
-  right: 32px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--secondary-color), transparent);
-}
-
-.content-subtitle {
-  font-size: 14px;
-  color: #ccc;
-  font-weight: normal;
-}
 
 .goods-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 24px;
-}
-
-.goods-card {
-  background: var(--card-bg);
-  border: 1px solid var(--primary-color);
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 16px;
+  padding: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
+}
+
+/* 网格容器 */
+.goods-grid-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 5x2 网格布局 */
+.goods-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: 1600px;
+  height: 100%;
+  max-height: 600px;
+}
+
+/* 货物卡片 */
+.goods-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.goods-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
 }
 
 .goods-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(30, 136, 229, 0.2);
+  background: rgba(0, 212, 255, 0.05);
+  border-color: var(--primary-color);
+  box-shadow: 0 8px 32px rgba(0, 212, 255, 0.1);
+  transform: translateY(-4px);
+}
+
+.goods-card:hover::before {
+  transform: scaleX(1);
+}
+
+/* 卡片头部 - 货物编号 */
+.goods-card-header {
+  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .goods-no {
   font-size: 20px;
-  font-weight: bold;
-  color: var(--warning-color);
-  min-width: 100px;
+  font-weight: 600;
+  color: var(--primary-color);
+  letter-spacing: 0.5px;
 }
 
-.goods-info {
+/* 卡片主体 - 商品信息 */
+.goods-card-body {
   flex: 1;
-  margin-left: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 16px 0;
 }
 
 .goods-name {
-  font-size: 16px;
-  margin-bottom: 4px;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--on-surface-color);
+  margin-bottom: 8px;
+  text-align: center;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .goods-spec {
-  font-size: 14px;
-  color: #ccc;
+  font-size: 18px;
+  color: var(--on-surface-muted);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 卡片底部 - 数量 */
+.goods-card-footer {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
 }
 
 .goods-quantity {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-}
-
-.quantity-value {
-  font-size: 24px;
-  font-weight: bold;
+  font-size: 32px;
+  font-weight: 700;
   color: var(--success-color);
+  margin-right: 8px;
 }
 
-.quantity-unit {
-  font-size: 14px;
-  color: #ccc;
+.goods-unit {
+  font-size: 18px;
+  color: var(--on-surface-muted);
+  font-weight: 400;
 }
+
+/* 更多货物提示 */
+.more-goods-hint {
+  margin-top: 16px;
+  text-align: center;
+  font-size: 18px;
+  color: var(--on-surface-muted);
+  font-style: italic;
+}
+
 
 /* 加载和错误状态 */
 .loading {
@@ -1032,9 +1095,15 @@ document.addEventListener('keydown', (e) => {
 }
 
 .empty-state-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 80px;
+  margin-bottom: 24px;
   opacity: 0.5;
+}
+
+.empty-state-text {
+  font-size: 28px;
+  margin: 0;
+  color: #888;
 }
 
 /* 响应式设计 */

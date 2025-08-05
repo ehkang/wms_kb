@@ -1,12 +1,12 @@
 # IDE directories
 .idea/
 .claude/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 
 # Build outputs
 dist/
-build/
-out/
 
 # Binaries for programs and plugins
 *.exe
@@ -79,8 +79,16 @@ local.json
 *.rar
 *.7z
 
-# Node.js dependencies (for electron subdirectory)
+# Node.js dependencies
 node_modules/
+.pnpm-store/
+package-lock.json
+yarn.lock
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+npm-debug.log*
+lerna-debug.log*
 
 # Application specific compiled files
 wms-dashboard-*
@@ -109,6 +117,28 @@ electron/dist/
 electron/build/
 electron/out/
 electron/node_modules/
+electron/release/
+electron/.webpack/
+dist-electron/
+dist-ssr/
+*.local
+
+# TypeScript
+*.tsbuildinfo
+.tsc-tmp/
+
+# Testing
+coverage/
+.nyc_output/
+
+# ESLint and other linters
+.eslintcache
+.stylelintcache
+
+# Vite
+.vite/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
 
 # Keep important files
 !README.md

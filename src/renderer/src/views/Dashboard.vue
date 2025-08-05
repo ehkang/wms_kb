@@ -10,6 +10,14 @@
         <span v-if="errorMessage"> - {{ errorMessage }}</span>
       </h1>
       <div class="header-controls">
+        <!-- 站台切换器 -->
+        <div class="station-switcher">
+          <select v-model="selectedStation" @change="onStationChange" class="station-select">
+            <option v-for="station in availableStations" :key="station" :value="station">
+              {{ station }}
+            </option>
+          </select>
+        </div>
         <div class="connection-status">
           <span class="status-label">WMS:</span>
           <div class="status-dot" :class="getStatusClass(wmsConnectionStatus)"></div>
@@ -145,20 +153,15 @@ import type { HubConnection } from '@microsoft/signalr'
 import { API_CONFIG } from '../config/api'
 
 // 获取站台配置
-let defaultStation = 'Tran3001'
-try {
-  // 尝试从配置文件读取
-  const config = require('../../../../../config.json')
-  if (config.station) {
-    defaultStation = config.station
-  }
-} catch (e) {
-  console.log('使用默认站台:', defaultStation)
-}
+const defaultStation = 'Tran3001'
 
 // 获取 URL 参数（URL 参数优先级更高）
 const urlParams = new URLSearchParams(window.location.search)
 const localStationNo = ref(urlParams.get('p') || defaultStation)
+
+// 站台切换相关
+const selectedStation = ref(localStationNo.value)
+const availableStations = ref(['Tran3001', 'Tran3002', 'Tran3003', 'Tran3004'])
 
 // 使用状态管理
 const wmsStore = useWMSStore()
@@ -193,6 +196,38 @@ const maxLogs = 500
 
 // SignalR 连接
 let signalRConnection: HubConnection | null = null
+
+// 站台切换处理
+async function onStationChange() {
+  try {
+    // 保存到持久化存储
+    if (window.api && window.api.config) {
+      await window.api.config.set('station', selectedStation.value)
+    }
+    
+    // 更新本地站台编号
+    localStationNo.value = selectedStation.value
+    
+    // 更新 store 中的站台
+    wmsStore.setLocalStationNo(selectedStation.value)
+    
+    // 断开当前 WebSocket 连接
+    if (signalRConnection && signalRConnection.state === 'Connected') {
+      await signalRConnection.stop()
+    }
+    
+    // 重新初始化
+    await wmsStore.initialize()
+    
+    // 重新连接 WebSocket
+    await initSignalR()
+    
+    addLog(1, `切换到站台: ${selectedStation.value}`, 'System')
+  } catch (error) {
+    console.error('Failed to switch station:', error)
+    addLog(4, `切换站台失败: ${(error as Error).message}`, 'System')
+  }
+}
 
 // 计算属性
 const filteredLogs = computed(() => {
@@ -353,6 +388,36 @@ const initSignalR = async () => {
 
 // 生命周期
 onMounted(async () => {
+  // 从持久化存储加载站台配置
+  if (window.api && window.api.config) {
+    try {
+      // 调试：打印配置文件路径
+      const configPath = await window.api.config.getPath()
+      console.log('持久化存储路径:', configPath)
+      
+      // 加载保存的站台
+      const savedStation = await window.api.config.get('station')
+      console.log('已保存的站台:', savedStation)
+      
+      if (savedStation && !urlParams.get('p')) {
+        // 如果有保存的站台且URL没有参数，使用保存的站台
+        localStationNo.value = savedStation
+        selectedStation.value = savedStation
+        console.log('使用持久化存储的站台:', savedStation)
+      } else {
+        console.log('使用默认站台或URL参数:', localStationNo.value)
+      }
+      
+      // 打印所有配置
+      const allConfig = await window.api.config.getAll()
+      console.log('所有配置:', allConfig)
+    } catch (error) {
+      console.error('Failed to load station from config:', error)
+    }
+  } else {
+    console.warn('Config API not available')
+  }
+  
   // 设置当前站台编号
   console.log('设置当前站台编号:', localStationNo.value)
   wmsStore.setLocalStationNo(localStationNo.value)
@@ -514,6 +579,42 @@ document.addEventListener('keydown', (e) => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.station-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 16px;
+}
+
+.station-select {
+  background: var(--surface-glass);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.station-select:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 20px var(--primary-color);
+}
+
+.station-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 25px var(--primary-color);
+}
+
+.station-select option {
+  background: #1a1a1a;
+  color: #ffffff;
 }
 
 .connection-status {

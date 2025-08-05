@@ -11797,104 +11797,100 @@ const _hoisted_1 = { class: "dashboard" };
 const _hoisted_2 = { class: "header-title" };
 const _hoisted_3 = { key: 0 };
 const _hoisted_4 = { class: "header-controls" };
-const _hoisted_5 = { class: "connection-status" };
-const _hoisted_6 = { class: "connection-status" };
-const _hoisted_7 = { class: "coordinates-display" };
-const _hoisted_8 = { class: "coordinate-item" };
-const _hoisted_9 = { class: "coordinate-label" };
-const _hoisted_10 = {
+const _hoisted_5 = { class: "station-switcher" };
+const _hoisted_6 = ["value"];
+const _hoisted_7 = { class: "connection-status" };
+const _hoisted_8 = { class: "connection-status" };
+const _hoisted_9 = { class: "coordinates-display" };
+const _hoisted_10 = { class: "coordinate-item" };
+const _hoisted_11 = { class: "coordinate-label" };
+const _hoisted_12 = {
   class: "coordinate-value",
   style: { "color": "#b3e5fc" }
 };
-const _hoisted_11 = { class: "coordinate-item" };
-const _hoisted_12 = { class: "coordinate-label" };
-const _hoisted_13 = {
+const _hoisted_13 = { class: "coordinate-item" };
+const _hoisted_14 = { class: "coordinate-label" };
+const _hoisted_15 = {
   class: "coordinate-value",
   style: { "color": "#b3e5fc" }
 };
-const _hoisted_14 = { class: "coordinate-item" };
-const _hoisted_15 = { class: "coordinate-label" };
-const _hoisted_16 = {
+const _hoisted_16 = { class: "coordinate-item" };
+const _hoisted_17 = { class: "coordinate-label" };
+const _hoisted_18 = {
   class: "coordinate-value",
   style: { "color": "#b3e5fc" }
 };
-const _hoisted_17 = { class: "content" };
-const _hoisted_18 = { class: "tray-info" };
-const _hoisted_19 = { class: "tray-title" };
-const _hoisted_20 = { class: "tray-list" };
-const _hoisted_21 = {
+const _hoisted_19 = { class: "content" };
+const _hoisted_20 = { class: "tray-info" };
+const _hoisted_21 = { class: "tray-title" };
+const _hoisted_22 = { class: "tray-list" };
+const _hoisted_23 = {
   key: 0,
   class: "loading"
 };
-const _hoisted_22 = {
+const _hoisted_24 = {
   class: "tray-item-location",
   style: { "color": "#90a4ae" }
 };
-const _hoisted_23 = { class: "main-content" };
-const _hoisted_24 = { class: "goods-section" };
-const _hoisted_25 = { class: "goods-list" };
-const _hoisted_26 = {
+const _hoisted_25 = { class: "main-content" };
+const _hoisted_26 = { class: "goods-section" };
+const _hoisted_27 = { class: "goods-list" };
+const _hoisted_28 = {
   key: 0,
   class: "loading"
 };
-const _hoisted_27 = {
+const _hoisted_29 = {
   key: 1,
   class: "error-message"
 };
-const _hoisted_28 = {
+const _hoisted_30 = {
   key: 2,
   class: "empty-state"
 };
-const _hoisted_29 = { class: "empty-state-text" };
-const _hoisted_30 = {
+const _hoisted_31 = { class: "empty-state-text" };
+const _hoisted_32 = {
   key: 3,
   class: "goods-grid-container"
 };
-const _hoisted_31 = { class: "goods-grid" };
-const _hoisted_32 = { class: "goods-card-header" };
-const _hoisted_33 = {
+const _hoisted_33 = { class: "goods-grid" };
+const _hoisted_34 = { class: "goods-card-header" };
+const _hoisted_35 = {
   class: "goods-no",
   style: { "color": "#00d4ff" }
 };
-const _hoisted_34 = { class: "goods-card-body" };
-const _hoisted_35 = { class: "goods-name" };
-const _hoisted_36 = {
+const _hoisted_36 = { class: "goods-card-body" };
+const _hoisted_37 = { class: "goods-name" };
+const _hoisted_38 = {
   class: "goods-spec",
   style: { "color": "#b3e5fc" }
 };
-const _hoisted_37 = { class: "goods-card-footer" };
-const _hoisted_38 = {
+const _hoisted_39 = { class: "goods-card-footer" };
+const _hoisted_40 = {
   class: "goods-quantity",
   style: { "color": "#00e676" }
 };
-const _hoisted_39 = {
+const _hoisted_41 = {
   class: "goods-unit",
   style: { "color": "#90a4ae" }
 };
-const _hoisted_40 = {
+const _hoisted_42 = {
   key: 0,
   class: "more-goods-hint"
 };
-const _hoisted_41 = { class: "log-section" };
-const _hoisted_42 = { class: "log-header" };
-const _hoisted_43 = { class: "log-controls" };
-const _hoisted_44 = { style: { "color": "#606266", "font-size": "10px", "margin-bottom": "1px" } };
-const _hoisted_45 = { class: "log-message" };
+const _hoisted_43 = { class: "log-section" };
+const _hoisted_44 = { class: "log-header" };
+const _hoisted_45 = { class: "log-controls" };
+const _hoisted_46 = { style: { "color": "#606266", "font-size": "10px", "margin-bottom": "1px" } };
+const _hoisted_47 = { class: "log-message" };
+const defaultStation = "Tran3001";
 const maxLogs = 500;
 const _sfc_main$1 = /* @__PURE__ */ defineComponent({
   __name: "Dashboard",
   setup(__props) {
-    let defaultStation = "Tran3001";
-    try {
-      const config = require("../../../../../config.json");
-      if (config.station) {
-        defaultStation = config.station;
-      }
-    } catch (e) {
-      console.log("使用默认站台:", defaultStation);
-    }
     const urlParams = new URLSearchParams(window.location.search);
     const localStationNo = ref(urlParams.get("p") || defaultStation);
+    const selectedStation = ref(localStationNo.value);
+    const availableStations = ref(["Tran3001", "Tran3002", "Tran3003", "Tran3004"]);
     const wmsStore2 = useWMSStore();
     const state = wmsStore2.getState();
     const stationName = computed(() => state.stationName);
@@ -11912,6 +11908,24 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
     const logFilter = ref("all");
     const logs = ref([]);
     let signalRConnection = null;
+    async function onStationChange() {
+      try {
+        if (window.api && window.api.config) {
+          await window.api.config.set("station", selectedStation.value);
+        }
+        localStationNo.value = selectedStation.value;
+        wmsStore2.setLocalStationNo(selectedStation.value);
+        if (signalRConnection && signalRConnection.state === "Connected") {
+          await signalRConnection.stop();
+        }
+        await wmsStore2.initialize();
+        await initSignalR();
+        addLog(1, `切换到站台: ${selectedStation.value}`, "System");
+      } catch (error) {
+        console.error("Failed to switch station:", error);
+        addLog(4, `切换站台失败: ${error.message}`, "System");
+      }
+    }
     const filteredLogs = computed(() => {
       if (logFilter.value === "all") return logs.value;
       return logs.value.filter((log) => mapLogLevel(log.logLevel) === logFilter.value);
@@ -12041,6 +12055,27 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
       }
     };
     onMounted(async () => {
+      if (window.api && window.api.config) {
+        try {
+          const configPath = await window.api.config.getPath();
+          console.log("持久化存储路径:", configPath);
+          const savedStation = await window.api.config.get("station");
+          console.log("已保存的站台:", savedStation);
+          if (savedStation && !urlParams.get("p")) {
+            localStationNo.value = savedStation;
+            selectedStation.value = savedStation;
+            console.log("使用持久化存储的站台:", savedStation);
+          } else {
+            console.log("使用默认站台或URL参数:", localStationNo.value);
+          }
+          const allConfig = await window.api.config.getAll();
+          console.log("所有配置:", allConfig);
+        } catch (error) {
+          console.error("Failed to load station from config:", error);
+        }
+      } else {
+        console.warn("Config API not available");
+      }
       console.log("设置当前站台编号:", localStationNo.value);
       wmsStore2.setLocalStationNo(localStationNo.value);
       generateStars();
@@ -12083,7 +12118,23 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
           ]),
           createBaseVNode("div", _hoisted_4, [
             createBaseVNode("div", _hoisted_5, [
-              _cache[1] || (_cache[1] = createBaseVNode("span", { class: "status-label" }, "WMS:", -1)),
+              withDirectives(createBaseVNode("select", {
+                "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => selectedStation.value = $event),
+                onChange: onStationChange,
+                class: "station-select"
+              }, [
+                (openBlock(true), createElementBlock(Fragment, null, renderList(availableStations.value, (station) => {
+                  return openBlock(), createElementBlock("option", {
+                    key: station,
+                    value: station
+                  }, toDisplayString(station), 9, _hoisted_6);
+                }), 128))
+              ], 544), [
+                [vModelSelect, selectedStation.value]
+              ])
+            ]),
+            createBaseVNode("div", _hoisted_7, [
+              _cache[2] || (_cache[2] = createBaseVNode("span", { class: "status-label" }, "WMS:", -1)),
               createBaseVNode("div", {
                 class: normalizeClass(["status-dot", getStatusClass(wmsConnectionStatus.value)])
               }, null, 2),
@@ -12091,8 +12142,8 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
                 style: normalizeStyle({ color: wmsConnectionStatus.value === "connected" ? "#00e676" : wmsConnectionStatus.value === "connecting" || wmsConnectionStatus.value === "reconnecting" ? "#ffab00" : "#ff5252" })
               }, toDisplayString(getStatusText(wmsConnectionStatus.value)), 5)
             ]),
-            createBaseVNode("div", _hoisted_6, [
-              _cache[2] || (_cache[2] = createBaseVNode("span", { class: "status-label" }, "WCS:", -1)),
+            createBaseVNode("div", _hoisted_8, [
+              _cache[3] || (_cache[3] = createBaseVNode("span", { class: "status-label" }, "WCS:", -1)),
               createBaseVNode("div", {
                 class: normalizeClass(["status-dot", getStatusClass(wcsConnectionStatus.value)])
               }, null, 2),
@@ -12100,27 +12151,27 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
                 style: normalizeStyle({ color: wcsConnectionStatus.value === "connected" ? "#00e676" : wcsConnectionStatus.value === "connecting" || wcsConnectionStatus.value === "reconnecting" ? "#ffab00" : "#ff5252" })
               }, toDisplayString(getStatusText(wcsConnectionStatus.value)), 5)
             ]),
-            createBaseVNode("div", _hoisted_7, [
-              createBaseVNode("div", _hoisted_8, [
-                createBaseVNode("div", _hoisted_9, toDisplayString(devices.value["Crn2001"]?.name || "堆垛机001") + ":", 1),
-                createBaseVNode("div", _hoisted_10, toDisplayString(getCrn2001Coords()), 1)
+            createBaseVNode("div", _hoisted_9, [
+              createBaseVNode("div", _hoisted_10, [
+                createBaseVNode("div", _hoisted_11, toDisplayString(devices.value["Crn2001"]?.name || "堆垛机001") + ":", 1),
+                createBaseVNode("div", _hoisted_12, toDisplayString(getCrn2001Coords()), 1)
               ]),
-              createBaseVNode("div", _hoisted_11, [
-                createBaseVNode("div", _hoisted_12, toDisplayString(devices.value["Crn2002"]?.name || "堆垛机002") + ":", 1),
-                createBaseVNode("div", _hoisted_13, toDisplayString(getCrn2002Coords()), 1)
+              createBaseVNode("div", _hoisted_13, [
+                createBaseVNode("div", _hoisted_14, toDisplayString(devices.value["Crn2002"]?.name || "堆垛机002") + ":", 1),
+                createBaseVNode("div", _hoisted_15, toDisplayString(getCrn2002Coords()), 1)
               ]),
-              createBaseVNode("div", _hoisted_14, [
-                createBaseVNode("div", _hoisted_15, toDisplayString(devices.value["RGV01"]?.name || "穿梭车") + ":", 1),
-                createBaseVNode("div", _hoisted_16, toDisplayString(getRgv01Coords()), 1)
+              createBaseVNode("div", _hoisted_16, [
+                createBaseVNode("div", _hoisted_17, toDisplayString(devices.value["RGV01"]?.name || "穿梭车") + ":", 1),
+                createBaseVNode("div", _hoisted_18, toDisplayString(getRgv01Coords()), 1)
               ])
             ])
           ])
         ], 2),
-        createBaseVNode("div", _hoisted_17, [
-          createBaseVNode("aside", _hoisted_18, [
-            createBaseVNode("div", _hoisted_19, " 在途托盘列表 (" + toDisplayString(containers.value.length) + ") ", 1),
-            createBaseVNode("div", _hoisted_20, [
-              containers.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_21, "当前暂无托盘")) : (openBlock(true), createElementBlock(Fragment, { key: 1 }, renderList(containers.value, (tray) => {
+        createBaseVNode("div", _hoisted_19, [
+          createBaseVNode("aside", _hoisted_20, [
+            createBaseVNode("div", _hoisted_21, " 在途托盘列表 (" + toDisplayString(containers.value.length) + ") ", 1),
+            createBaseVNode("div", _hoisted_22, [
+              containers.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_23, "当前暂无托盘")) : (openBlock(true), createElementBlock(Fragment, { key: 1 }, renderList(containers.value, (tray) => {
                 return openBlock(), createElementBlock("div", {
                   key: tray.code,
                   class: normalizeClass(["tray-item", {
@@ -12129,50 +12180,50 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
                   }])
                 }, [
                   createTextVNode(toDisplayString(tray.code) + " ", 1),
-                  createBaseVNode("div", _hoisted_22, toDisplayString(tray.location), 1)
+                  createBaseVNode("div", _hoisted_24, toDisplayString(tray.location), 1)
                 ], 2);
               }), 128))
             ])
           ]),
-          createBaseVNode("main", _hoisted_23, [
-            createBaseVNode("section", _hoisted_24, [
-              createBaseVNode("div", _hoisted_25, [
-                isLoading.value ? (openBlock(), createElementBlock("div", _hoisted_26, "加载货物信息...")) : errorMessage.value && localGoods.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_27, toDisplayString(errorMessage.value), 1)) : localGoods.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_28, [
-                  _cache[3] || (_cache[3] = createBaseVNode("div", { class: "empty-state-icon" }, "📦", -1)),
-                  createBaseVNode("p", _hoisted_29, toDisplayString(currentContainer.value ? "该托盘暂无货物" : "当前站台暂无托盘"), 1)
-                ])) : (openBlock(), createElementBlock("div", _hoisted_30, [
-                  createBaseVNode("div", _hoisted_31, [
+          createBaseVNode("main", _hoisted_25, [
+            createBaseVNode("section", _hoisted_26, [
+              createBaseVNode("div", _hoisted_27, [
+                isLoading.value ? (openBlock(), createElementBlock("div", _hoisted_28, "加载货物信息...")) : errorMessage.value && localGoods.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_29, toDisplayString(errorMessage.value), 1)) : localGoods.value.length === 0 ? (openBlock(), createElementBlock("div", _hoisted_30, [
+                  _cache[4] || (_cache[4] = createBaseVNode("div", { class: "empty-state-icon" }, "📦", -1)),
+                  createBaseVNode("p", _hoisted_31, toDisplayString(currentContainer.value ? "该托盘暂无货物" : "当前站台暂无托盘"), 1)
+                ])) : (openBlock(), createElementBlock("div", _hoisted_32, [
+                  createBaseVNode("div", _hoisted_33, [
                     (openBlock(true), createElementBlock(Fragment, null, renderList(localGoods.value.slice(0, 10), (goods) => {
                       return openBlock(), createElementBlock("div", {
                         key: goods.goodsNo,
                         class: "goods-card"
                       }, [
-                        createBaseVNode("div", _hoisted_32, [
-                          createBaseVNode("span", _hoisted_33, toDisplayString(goods.goodsNo || "N/A"), 1)
-                        ]),
                         createBaseVNode("div", _hoisted_34, [
-                          createBaseVNode("div", _hoisted_35, toDisplayString(goods.goodsName || "未知商品"), 1),
-                          createBaseVNode("div", _hoisted_36, toDisplayString(goods.goodsSpec || "-"), 1)
+                          createBaseVNode("span", _hoisted_35, toDisplayString(goods.goodsNo || "N/A"), 1)
                         ]),
-                        createBaseVNode("div", _hoisted_37, [
-                          createBaseVNode("span", _hoisted_38, toDisplayString(Math.floor(goods.quantity) || 0), 1),
-                          createBaseVNode("span", _hoisted_39, toDisplayString(goods.unit || "件"), 1)
+                        createBaseVNode("div", _hoisted_36, [
+                          createBaseVNode("div", _hoisted_37, toDisplayString(goods.goodsName || "未知商品"), 1),
+                          createBaseVNode("div", _hoisted_38, toDisplayString(goods.goodsSpec || "-"), 1)
+                        ]),
+                        createBaseVNode("div", _hoisted_39, [
+                          createBaseVNode("span", _hoisted_40, toDisplayString(Math.floor(goods.quantity) || 0), 1),
+                          createBaseVNode("span", _hoisted_41, toDisplayString(goods.unit || "件"), 1)
                         ])
                       ]);
                     }), 128))
                   ]),
-                  localGoods.value.length > 10 ? (openBlock(), createElementBlock("div", _hoisted_40, " ... 还有 " + toDisplayString(localGoods.value.length - 10) + " 种货物 ", 1)) : createCommentVNode("", true)
+                  localGoods.value.length > 10 ? (openBlock(), createElementBlock("div", _hoisted_42, " ... 还有 " + toDisplayString(localGoods.value.length - 10) + " 种货物 ", 1)) : createCommentVNode("", true)
                 ]))
               ])
             ]),
-            createBaseVNode("section", _hoisted_41, [
-              createBaseVNode("div", _hoisted_42, [
-                _cache[5] || (_cache[5] = createBaseVNode("div", { class: "log-title" }, "系统日志", -1)),
-                createBaseVNode("div", _hoisted_43, [
+            createBaseVNode("section", _hoisted_43, [
+              createBaseVNode("div", _hoisted_44, [
+                _cache[6] || (_cache[6] = createBaseVNode("div", { class: "log-title" }, "系统日志", -1)),
+                createBaseVNode("div", _hoisted_45, [
                   withDirectives(createBaseVNode("select", {
-                    "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => logFilter.value = $event),
+                    "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => logFilter.value = $event),
                     class: "log-filter"
-                  }, _cache[4] || (_cache[4] = [
+                  }, _cache[5] || (_cache[5] = [
                     createBaseVNode("option", { value: "all" }, "全部", -1),
                     createBaseVNode("option", { value: "info" }, "信息", -1),
                     createBaseVNode("option", { value: "warning" }, "警告", -1),
@@ -12196,8 +12247,8 @@ const _sfc_main$1 = /* @__PURE__ */ defineComponent({
                     key: log.id,
                     class: normalizeClass(["log-entry", mapLogLevel(log.logLevel)])
                   }, [
-                    createBaseVNode("div", _hoisted_44, " [" + toDisplayString(log.time) + "] " + toDisplayString(log.categoryName || "系统"), 1),
-                    createBaseVNode("div", _hoisted_45, toDisplayString(log.message), 1)
+                    createBaseVNode("div", _hoisted_46, " [" + toDisplayString(log.time) + "] " + toDisplayString(log.categoryName || "系统"), 1),
+                    createBaseVNode("div", _hoisted_47, toDisplayString(log.message), 1)
                   ], 2);
                 }), 128))
               ], 512)
@@ -12215,7 +12266,7 @@ const _export_sfc = (sfc, props) => {
   }
   return target;
 };
-const Dashboard = /* @__PURE__ */ _export_sfc(_sfc_main$1, [["__scopeId", "data-v-fc51c4f7"]]);
+const Dashboard = /* @__PURE__ */ _export_sfc(_sfc_main$1, [["__scopeId", "data-v-7ea0f1c4"]]);
 const _sfc_main = /* @__PURE__ */ defineComponent({
   __name: "App",
   setup(__props) {

@@ -10,37 +10,50 @@
         <span v-if="errorMessage"> - {{ errorMessage }}</span>
       </h1>
       <div class="header-controls">
-        <!-- 站台切换器 -->
-        <div class="station-switcher">
+        <!-- 左侧留空，使用 flex-grow 推送所有控件到右侧 -->
+        <div class="header-spacer"></div>
+        
+        <!-- 右侧控件组 -->
+        <div class="header-controls-right">
+          <div class="connection-status">
+            <span class="status-label">WMS:</span>
+            <div class="status-dot" :class="getStatusClass(wmsConnectionStatus)"></div>
+            <span :style="{ color: wmsConnectionStatus === 'connected' ? '#00e676' : wmsConnectionStatus === 'connecting' || wmsConnectionStatus === 'reconnecting' ? '#ffab00' : '#ff5252' }">{{ getStatusText(wmsConnectionStatus) }}</span>
+          </div>
+          <div class="connection-status">
+            <span class="status-label">WCS:</span>
+            <div class="status-dot" :class="getStatusClass(wcsConnectionStatus)"></div>
+            <span :style="{ color: wcsConnectionStatus === 'connected' ? '#00e676' : wcsConnectionStatus === 'connecting' || wcsConnectionStatus === 'reconnecting' ? '#ffab00' : '#ff5252' }">{{ getStatusText(wcsConnectionStatus) }}</span>
+          </div>
+          <div class="coordinates-display">
+            <div class="coordinate-item">
+              <div class="coordinate-label">{{ devices['Crn2001']?.name || '堆垛机001' }}:</div>
+              <div class="coordinate-value" style="color: #b3e5fc;">{{ getCrn2001Coords() }}</div>
+            </div>
+            <div class="coordinate-item">
+              <div class="coordinate-label">{{ devices['Crn2002']?.name || '堆垛机002' }}:</div>
+              <div class="coordinate-value" style="color: #b3e5fc;">{{ getCrn2002Coords() }}</div>
+            </div>
+            <div class="coordinate-item">
+              <div class="coordinate-label">{{ devices['RGV01']?.name || '穿梭车' }}:</div>
+              <div class="coordinate-value" style="color: #b3e5fc;">{{ getRgv01Coords() }}</div>
+            </div>
+          </div>
+          
+          <!-- 站台切换器 - 右上角 -->
+          <div class="station-switcher">
+          <div class="station-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/>
+            </svg>
+          </div>
+          <span class="station-label">站台</span>
           <select v-model="selectedStation" @change="onStationChange" class="station-select">
             <option v-for="station in availableStations" :key="station" :value="station">
               {{ station }}
             </option>
           </select>
         </div>
-        <div class="connection-status">
-          <span class="status-label">WMS:</span>
-          <div class="status-dot" :class="getStatusClass(wmsConnectionStatus)"></div>
-          <span :style="{ color: wmsConnectionStatus === 'connected' ? '#00e676' : wmsConnectionStatus === 'connecting' || wmsConnectionStatus === 'reconnecting' ? '#ffab00' : '#ff5252' }">{{ getStatusText(wmsConnectionStatus) }}</span>
-        </div>
-        <div class="connection-status">
-          <span class="status-label">WCS:</span>
-          <div class="status-dot" :class="getStatusClass(wcsConnectionStatus)"></div>
-          <span :style="{ color: wcsConnectionStatus === 'connected' ? '#00e676' : wcsConnectionStatus === 'connecting' || wcsConnectionStatus === 'reconnecting' ? '#ffab00' : '#ff5252' }">{{ getStatusText(wcsConnectionStatus) }}</span>
-        </div>
-        <div class="coordinates-display">
-          <div class="coordinate-item">
-            <div class="coordinate-label">{{ devices['Crn2001']?.name || '堆垛机001' }}:</div>
-            <div class="coordinate-value" style="color: #b3e5fc;">{{ getCrn2001Coords() }}</div>
-          </div>
-          <div class="coordinate-item">
-            <div class="coordinate-label">{{ devices['Crn2002']?.name || '堆垛机002' }}:</div>
-            <div class="coordinate-value" style="color: #b3e5fc;">{{ getCrn2002Coords() }}</div>
-          </div>
-          <div class="coordinate-item">
-            <div class="coordinate-label">{{ devices['RGV01']?.name || '穿梭车' }}:</div>
-            <div class="coordinate-value" style="color: #b3e5fc;">{{ getRgv01Coords() }}</div>
-          </div>
         </div>
       </div>
     </header>
@@ -579,42 +592,119 @@ document.addEventListener('keydown', (e) => {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+}
+
+.header-spacer {
+  flex: 1;
+}
+
+.header-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .station-switcher {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-right: 16px;
+  gap: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 8px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  animation: fadeInSlide 0.6s ease-out;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.station-switcher::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.station-switcher:hover::before {
+  left: 100%;
+}
+
+.station-switcher:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+}
+
+.station-icon {
+  display: flex;
+  align-items: center;
+  color: #64b5f6;
+  transition: all 0.3s ease;
+}
+
+.station-switcher:hover .station-icon {
+  color: #90caf9;
+  transform: scale(1.1);
+}
+
+.station-label {
+  color: #e0e0e0;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
 }
 
 .station-select {
-  background: var(--surface-glass);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 6px 12px;
+  background: transparent;
+  border: none;
   color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
   outline: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  min-width: 100px;
 }
 
 .station-select:hover {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 20px var(--primary-color);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .station-select:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 25px var(--primary-color);
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.3);
 }
 
 .station-select option {
-  background: #1a1a1a;
+  background: #2a2a2a;
   color: #ffffff;
+  padding: 8px;
+  font-weight: 500;
+}
+
+.station-select option:checked {
+  background: #1976d2;
 }
 
 .connection-status {

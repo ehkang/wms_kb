@@ -3,7 +3,6 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import * as fs from 'fs'
-import * as path from 'path'
 
 // 使用 Electron 的 userData 路径存储配置
 // 这是 Electron 官方推荐的持久化存储位置
@@ -162,6 +161,7 @@ function createWindow(): void {
     width: 1400,
     height: 900,
     show: false,
+    fullscreen: true,  // 启动时全屏
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {

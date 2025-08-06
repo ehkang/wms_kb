@@ -148,6 +148,8 @@ function createWindow() {
     width: 1400,
     height: 900,
     show: false,
+    fullscreen: true,
+    // 启动时全屏
     autoHideMenuBar: true,
     ...process.platform === "linux" ? { icon } : {},
     webPreferences: {

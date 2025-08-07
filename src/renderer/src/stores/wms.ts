@@ -46,8 +46,28 @@ interface WMSState {
   deviceTrayMap: Map<string, any>
 }
 
+interface SingleStationData {
+  localStationNo: string
+  stationName: string
+  currentContainer: string
+  localGoods: Goods[]
+  isLoading: boolean
+  errorMessage: string
+}
+
+interface DualStationState {
+  station3002: SingleStationData
+  station3003: SingleStationData
+  globalConnectionStatus: {
+    wmsConnectionStatus: string
+    wcsConnectionStatus: string
+  }
+  devices: Record<string, Device>
+}
+
 class WMSStore {
   private state: WMSState
+  private dualStationState: DualStationState
   private wmsAPI!: AxiosInstance
   private wcsAPI!: AxiosInstance
   private watchDeviceCodes = ['Crn2002', 'TranLine3000']
@@ -68,6 +88,30 @@ class WMSStore {
       wcsConnectionStatus: 'connecting',
       operationMode: 'InOut',
       deviceTrayMap: new Map()
+    })
+
+    this.dualStationState = reactive({
+      station3002: {
+        localStationNo: 'Tran3002',
+        stationName: 'Tran3002',
+        currentContainer: '',
+        localGoods: [],
+        isLoading: false,
+        errorMessage: ''
+      },
+      station3003: {
+        localStationNo: 'Tran3003',
+        stationName: 'Tran3003',
+        currentContainer: '',
+        localGoods: [],
+        isLoading: false,
+        errorMessage: ''
+      },
+      globalConnectionStatus: {
+        wmsConnectionStatus: 'connecting',
+        wcsConnectionStatus: 'connecting'
+      },
+      devices: {}
     })
 
     this.initializeAPI()
@@ -460,6 +504,141 @@ class WMSStore {
   getState(): WMSState {
     return this.state
   }
+
+  // 双站台相关方法
+  async initializeDualStation(): Promise<void> {
+    try {
+      this.dualStationState.globalConnectionStatus.wmsConnectionStatus = 'connecting'
+      this.dualStationState.globalConnectionStatus.wcsConnectionStatus = 'connecting'
+
+      // 初始化双站台设备信息
+      await this.initDualStationDeviceInfo()
+      
+      // 并行获取两个站台数据
+      await Promise.all([
+        this.fetchStationData('Tran3002'),
+        this.fetchStationData('Tran3003')
+      ])
+
+      this.dualStationState.globalConnectionStatus.wmsConnectionStatus = 'connected'
+      this.dualStationState.globalConnectionStatus.wcsConnectionStatus = 'connected'
+    } catch (error) {
+      console.error('双站台初始化失败:', error)
+      this.dualStationState.globalConnectionStatus.wmsConnectionStatus = 'error'
+      this.dualStationState.globalConnectionStatus.wcsConnectionStatus = 'error'
+    }
+  }
+
+  private async initDualStationDeviceInfo(): Promise<void> {
+    this.dualStationState.globalConnectionStatus.wmsConnectionStatus = 'connecting'
+    this.dualStationState.globalConnectionStatus.wcsConnectionStatus = 'connecting'
+
+    // 确保 coordinateDevices 存在
+    if (!this.coordinateDevices) {
+      this.coordinateDevices = ['Crn2001', 'Crn2002', 'RGV01']
+    }
+
+    // 双站台需要监控的设备：站台设备 + 坐标设备
+    const dualStationDevices = ['Tran3002', 'Tran3003', ...this.coordinateDevices, ...this.watchDeviceCodes]
+    const uniqueDeviceCodes = [...new Set(dualStationDevices)]
+
+    for (const deviceCode of uniqueDeviceCodes) {
+      try {
+        const deviceInfo = await this.getDeviceStatus(deviceCode)
+        
+        if (deviceInfo.childrenDevice && deviceInfo.childrenDevice.length > 0) {
+          deviceInfo.childrenDevice.forEach((item: any) => {
+            this.dualStationState.devices[item.code] = item
+          })
+        } else {
+          this.dualStationState.devices[deviceInfo.code] = deviceInfo
+        }
+      } catch (error) {
+        console.error(`双站台设备 ${deviceCode} 初始化失败:`, error)
+      }
+    }
+  }
+
+  async fetchStationData(stationNo: string): Promise<void> {
+    try {
+      const stationKey = stationNo === 'Tran3002' ? 'station3002' : 'station3003'
+      this.dualStationState[stationKey].isLoading = true
+      this.dualStationState[stationKey].errorMessage = ''
+
+      // 获取设备信息更新站台名称（只有获取到有效名称时才更新）
+      const device = this.dualStationState.devices[stationNo]
+      if (device && device.name) {
+        this.dualStationState[stationKey].stationName = device.name
+      }
+      // 如果没有获取到设备名称，保持原有的站台编号，不改为"未知站台"
+
+      // 检查当前站台是否有托盘
+      const deviceTrayMap = new Map<string, any>()
+      for (const [deviceCode, deviceInfo] of Object.entries(this.dualStationState.devices)) {
+        if (deviceCode === stationNo && deviceInfo.palletCode && deviceInfo.palletCode !== '0' && deviceInfo.palletCode.toString().trim() !== '') {
+          this.dualStationState[stationKey].currentContainer = deviceInfo.palletCode.toString()
+          
+          // 获取托盘货物信息
+          const res = await this.getContainerGoods(deviceInfo.palletCode.toString())
+          if (res.errCode === 0) {
+            this.dualStationState[stationKey].localGoods = res.data || []
+          } else {
+            this.dualStationState[stationKey].errorMessage = res.errMsg || '未知错误'
+            this.dualStationState[stationKey].localGoods = []
+          }
+          break
+        }
+      }
+
+      // 如果没有找到托盘，清空数据
+      if (!this.dualStationState[stationKey].currentContainer) {
+        this.dualStationState[stationKey].currentContainer = ''
+        this.dualStationState[stationKey].localGoods = []
+      }
+
+      this.dualStationState[stationKey].isLoading = false
+    } catch (error) {
+      const stationKey = stationNo === 'Tran3002' ? 'station3002' : 'station3003'
+      this.dualStationState[stationKey].isLoading = false
+      this.dualStationState[stationKey].errorMessage = (error as Error).message || '请求失败'
+      this.dualStationState[stationKey].localGoods = []
+    }
+  }
+
+  updateStationDevice(deviceNo: string, newInfo: Device): void {
+    if (deviceNo === 'Tran3002' || deviceNo === 'Tran3003') {
+      this.dualStationState.devices[deviceNo] = newInfo
+      
+      const stationKey = deviceNo === 'Tran3002' ? 'station3002' : 'station3003'
+      // 只有获取到有效设备名称时才更新站台名称
+      if (newInfo.name) {
+        this.dualStationState[stationKey].stationName = newInfo.name
+      }
+
+      // 异步更新站台数据
+      this.fetchStationData(deviceNo).catch(console.error)
+    }
+
+    // 同时更新坐标设备
+    if (this.coordinateDevices.includes(deviceNo)) {
+      this.dualStationState.devices[deviceNo] = newInfo
+    }
+  }
+
+  getDualStationState(): DualStationState {
+    return this.dualStationState
+  }
+
+  async refreshDualStationData(): Promise<void> {
+    try {
+      await Promise.all([
+        this.fetchStationData('Tran3002'),
+        this.fetchStationData('Tran3003')
+      ])
+    } catch (error) {
+      console.error('双站台数据刷新失败:', error)
+    }
+  }
 }
 
 // 创建单例
@@ -471,3 +650,6 @@ export function useWMSStore(): WMSStore {
   }
   return wmsStore
 }
+
+// 导出类型定义供组件使用
+export type { Device, Container, Goods, WMSState, SingleStationData, DualStationState }

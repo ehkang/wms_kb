@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import type { DualStationState, Device } from '../stores/wms'
+import type { DualStationState } from '../stores/wms'
 import { computed } from 'vue'
 
 interface Props {

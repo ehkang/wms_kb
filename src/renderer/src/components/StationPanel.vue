@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import type { SingleStationData, Goods } from '../stores/wms'
+import type { SingleStationData } from '../stores/wms'
 import { computed } from 'vue'
 
 interface Props {

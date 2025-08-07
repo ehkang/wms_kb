@@ -573,7 +573,6 @@ class WMSStore {
       // 如果没有获取到设备名称，保持原有的站台编号，不改为"未知站台"
 
       // 检查当前站台是否有托盘
-      const deviceTrayMap = new Map<string, any>()
       for (const [deviceCode, deviceInfo] of Object.entries(this.dualStationState.devices)) {
         if (deviceCode === stationNo && deviceInfo.palletCode && deviceInfo.palletCode !== '0' && deviceInfo.palletCode.toString().trim() !== '') {
           this.dualStationState[stationKey].currentContainer = deviceInfo.palletCode.toString()

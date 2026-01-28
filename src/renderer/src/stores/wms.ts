@@ -29,6 +29,7 @@ interface Goods {
   goodsSpec?: string
   quantity: number
   unit: string
+  pickQuantity?: number  // 拣货数量
 }
 
 interface WMSState {
@@ -38,6 +39,7 @@ interface WMSState {
   containers: Container[]
   currentContainer: string
   localGoods: Goods[]
+  pickTaskMap: Record<string, number>  // goodsNo -> pickQuantity
   isLoading: boolean
   errorMessage: string
   wmsConnectionStatus: string
@@ -82,6 +84,7 @@ class WMSStore {
       containers: [],
       currentContainer: '',
       localGoods: [],
+      pickTaskMap: {},
       isLoading: false,
       errorMessage: '',
       wmsConnectionStatus: 'connecting',
@@ -217,6 +220,50 @@ class WMSStore {
       console.error('获取容器货物信息失败:', error)
       throw error
     }
+  }
+
+  private async getPickTasks(containerCode: string): Promise<Record<string, number>> {
+    if (!containerCode || containerCode === '0') {
+      return {}
+    }
+
+    try {
+      const response = await axios.get(
+        `https://aio.wxnanxing.com/api/wms/StockOutOrder/PickTask?containerCode=${encodeURIComponent(containerCode)}`
+      )
+
+      if (response.data && response.data.errCode === 0) {
+        const taskList = response.data.data as any[]
+        if (taskList && taskList.length > 0) {
+          const result: Record<string, number> = {}
+
+          for (const task of taskList) {
+            const goodsNo = task.goodsNo?.toString()
+            const pickQuantity = this.parseToInt(task.pickQuantity)
+
+            // 只记录有效的拣货任务（数量 > 0）
+            if (goodsNo && pickQuantity && pickQuantity > 0) {
+              // 如果同一个货物有多个拣货任务，累加数量
+              result[goodsNo] = (result[goodsNo] || 0) + pickQuantity
+            }
+          }
+
+          return result
+        }
+      }
+
+      return {}
+    } catch (error) {
+      console.error('获取拣货任务失败:', error)
+      return {}
+    }
+  }
+
+  private parseToInt(value: any): number | null {
+    if (value == null) return null
+    if (typeof value === 'number') return Math.floor(value)
+    if (typeof value === 'string') return parseInt(value, 10) || null
+    return null
   }
 
   private async getDeviceStatus(deviceNo: string): Promise<any> {
@@ -400,23 +447,39 @@ class WMSStore {
     if (!containerNo || containerNo === '0' || containerNo.length === 0) {
       this.state.localGoods = []
       this.state.currentContainer = ''
+      this.state.pickTaskMap = {}
       return
     }
 
     try {
       this.state.currentContainer = containerNo
-      const res = await this.getContainerGoods(containerNo)
+
+      // 并行获取货物信息和拣货任务
+      const [res, pickTaskMap] = await Promise.all([
+        this.getContainerGoods(containerNo),
+        this.getPickTasks(containerNo)
+      ])
 
       if (res.errCode === 0) {
-        this.state.localGoods = res.data || []
+        const goods = (res.data || []) as Goods[]
+
+        // 将拣货数量合并到货物数据中
+        this.state.localGoods = goods.map(item => ({
+          ...item,
+          pickQuantity: pickTaskMap[item.goodsNo] || 0
+        }))
+
+        this.state.pickTaskMap = pickTaskMap
         this.state.errorMessage = ''
       } else {
         this.state.errorMessage = res.errMsg || '未知错误'
         this.state.localGoods = []
+        this.state.pickTaskMap = {}
       }
     } catch (error) {
       this.state.errorMessage = (error as Error).message || '请求失败'
       this.state.localGoods = []
+      this.state.pickTaskMap = {}
     }
   }
 
@@ -562,40 +625,65 @@ class WMSStore {
   async fetchStationData(stationNo: string): Promise<void> {
     try {
       const stationKey = stationNo === 'Tran3002' ? 'station3002' : 'station3003'
-      this.dualStationState[stationKey].isLoading = true
-      this.dualStationState[stationKey].errorMessage = ''
 
       // 获取设备信息更新站台名称（只有获取到有效名称时才更新）
       const device = this.dualStationState.devices[stationNo]
       if (device && device.name) {
         this.dualStationState[stationKey].stationName = device.name
       }
-      // 如果没有获取到设备名称，保持原有的站台编号，不改为"未知站台"
 
-      // 检查当前站台是否有托盘
+      // 🔧 检查当前站台是否有托盘，并获取新的容器编码
+      let newContainerCode = ''
       for (const [deviceCode, deviceInfo] of Object.entries(this.dualStationState.devices)) {
         if (deviceCode === stationNo && deviceInfo.palletCode && deviceInfo.palletCode !== '0' && deviceInfo.palletCode.toString().trim() !== '') {
-          this.dualStationState[stationKey].currentContainer = deviceInfo.palletCode.toString()
-          
-          // 获取托盘货物信息
-          const res = await this.getContainerGoods(deviceInfo.palletCode.toString())
-          if (res.errCode === 0) {
-            this.dualStationState[stationKey].localGoods = res.data || []
-          } else {
-            this.dualStationState[stationKey].errorMessage = res.errMsg || '未知错误'
-            this.dualStationState[stationKey].localGoods = []
-          }
+          newContainerCode = deviceInfo.palletCode.toString()
           break
         }
       }
 
-      // 如果没有找到托盘，清空数据
-      if (!this.dualStationState[stationKey].currentContainer) {
-        this.dualStationState[stationKey].currentContainer = ''
-        this.dualStationState[stationKey].localGoods = []
-      }
+      // 获取当前容器编码
+      const currentContainerCode = this.dualStationState[stationKey].currentContainer
 
-      this.dualStationState[stationKey].isLoading = false
+      // 🎯 关键逻辑：只有在容器编码变化时才刷新数据（参考Flutter逻辑）
+      if (newContainerCode !== currentContainerCode) {
+        console.log(`${stationNo} 容器变化: ${currentContainerCode} → ${newContainerCode}`)
+
+        if (newContainerCode) {
+          // 场景1：容器出现或更换
+          this.dualStationState[stationKey].isLoading = true
+          this.dualStationState[stationKey].errorMessage = ''
+          this.dualStationState[stationKey].currentContainer = newContainerCode
+
+          // 并行获取托盘货物信息和拣货任务
+          const [res, pickTaskMap] = await Promise.all([
+            this.getContainerGoods(newContainerCode),
+            this.getPickTasks(newContainerCode)
+          ])
+
+          if (res.errCode === 0) {
+            const goods = (res.data || []) as Goods[]
+            // 合并拣货数量到货物数据
+            this.dualStationState[stationKey].localGoods = goods.map(item => ({
+              ...item,
+              pickQuantity: pickTaskMap[item.goodsNo] || 0
+            }))
+          } else {
+            this.dualStationState[stationKey].errorMessage = res.errMsg || '未知错误'
+            this.dualStationState[stationKey].localGoods = []
+          }
+
+          this.dualStationState[stationKey].isLoading = false
+        } else {
+          // 场景2：容器离开站台
+          console.log(`${stationNo} 容器离开`)
+          this.dualStationState[stationKey].currentContainer = ''
+          this.dualStationState[stationKey].localGoods = []
+          this.dualStationState[stationKey].isLoading = false
+        }
+      } else {
+        // 容器未变化，不刷新数据，避免3D模型重建
+        // console.log(`${stationNo} 容器未变化: ${currentContainerCode}`)
+      }
     } catch (error) {
       const stationKey = stationNo === 'Tran3002' ? 'station3002' : 'station3003'
       this.dualStationState[stationKey].isLoading = false

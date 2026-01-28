@@ -1,10 +1,16 @@
 <template>
   <section class="station-panel" :class="{ 'station-right': stationId === 'Tran3003' }">
     <header class="station-header">
-      <h2 class="station-name">{{ stationData.stationName }}</h2>
-      <div class="current-tray">
-        <span v-if="stationData.currentContainer" class="tray-code">{{ stationData.currentContainer }}</span>
-        <span v-else class="no-tray">无托盘</span>
+      <div class="header-left">
+        <h2 class="station-name">{{ stationData.stationName }}</h2>
+      </div>
+      <div v-if="stationData.currentContainer" class="header-center">
+        <div class="container-badge">
+          容器: {{ stationData.currentContainer }}
+        </div>
+      </div>
+      <div class="header-right">
+        <span v-if="!stationData.currentContainer" class="no-tray">无托盘</span>
       </div>
     </header>
     
@@ -26,14 +32,24 @@
       
       <div v-else class="goods-grid-container">
         <div class="goods-grid">
-          <div 
-            v-for="goods in displayGoods" 
+          <div
+            v-for="(goods, index) in displayGoods"
             :key="goods.goodsNo"
             class="goods-card"
           >
             <div class="goods-card-header">
               <span class="goods-no">{{ goods.goodsNo || 'N/A' }}</span>
             </div>
+
+            <!-- 3D模型查看器区域 -->
+            <div class="goods-3d-container">
+              <Model3DViewer
+                :goods-no="goods.goodsNo || ''"
+                :container-code="stationData.currentContainer || ''"
+                :init-delay="index * 200"
+              />
+            </div>
+
             <div class="goods-card-body">
               <div class="goods-name" :title="goods.goodsName">{{ goods.goodsName || '未知商品' }}</div>
               <div class="goods-spec" :title="goods.goodsSpec">{{ goods.goodsSpec || '-' }}</div>
@@ -41,6 +57,12 @@
             <div class="goods-card-footer">
               <span class="goods-quantity">{{ Math.floor(goods.quantity) || 0 }}</span>
               <span class="goods-unit">{{ goods.unit || '件' }}</span>
+
+              <!-- 拣货数量显示 (红色向下箭头 + 数量) -->
+              <template v-if="goods.pickQuantity && goods.pickQuantity > 0">
+                <span class="pick-arrow" style="color: #ff5252; margin: 0 4px;">↓</span>
+                <span class="pick-quantity" style="color: #ff5252; font-weight: bold; font-size: clamp(12px, 1.3vw, 16px);">{{ Math.floor(goods.pickQuantity) }}</span>
+              </template>
             </div>
           </div>
         </div>
@@ -55,6 +77,7 @@
 <script setup lang="ts">
 import type { SingleStationData } from '../stores/wms'
 import { computed } from 'vue'
+import Model3DViewer from './Model3DViewer.vue'
 
 interface Props {
   stationId: string
@@ -75,7 +98,7 @@ const displayGoods = computed(() => {
   height: 92vh;
   display: flex;
   flex-direction: column;
-  background: var(--surface-color, #0a0a0a);
+  background: #0a0e27;  /* Flutter背景色 */
   position: relative;
 }
 
@@ -101,7 +124,7 @@ const displayGoods = computed(() => {
   justify-content: space-between;
   align-items: center;
   padding: 0 1.5rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(0, 212, 255, 0.5);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
   backdrop-filter: blur(10px);
   position: relative;
@@ -114,33 +137,49 @@ const displayGoods = computed(() => {
   left: 1.5rem;
   right: 1.5rem;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--primary-color, #00d4ff), transparent);
+  background: linear-gradient(90deg, transparent, #00d4ff, transparent);
+}
+
+.header-left {
+  flex: 1;
 }
 
 .station-name {
   font-size: clamp(16px, 1.5vw, 20px);
   font-weight: 600;
-  color: var(--primary-color, #00d4ff);
+  color: #00d4ff;
   letter-spacing: -0.01em;
   margin: 0;
 }
 
-.current-tray {
-  font-size: clamp(12px, 1.2vw, 16px);
-  font-weight: 500;
+.header-center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
-.tray-code {
-  color: var(--accent-color, #00bfa5);
-  background: rgba(0, 191, 165, 0.1);
-  padding: 0.25rem 0.75rem;
-  border-radius: 16px;
-  border: 1px solid rgba(0, 191, 165, 0.3);
+.container-badge {
+  padding: 4px 12px;
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.3), rgba(255, 87, 34, 0.2));
+  border: 2px solid rgba(255, 152, 0, 0.6);
+  border-radius: 20px;
+  color: #ff9800;
+  font-size: clamp(12px, 1.2vw, 16px);
+  font-weight: bold;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.header-right {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .no-tray {
-  color: var(--text-muted, #90a4ae);
+  color: #90a4ae;
   font-style: italic;
+  font-size: clamp(12px, 1.2vw, 16px);
 }
 
 .goods-container {
@@ -171,10 +210,10 @@ const displayGoods = computed(() => {
 }
 
 .goods-card {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;  /* Flutter使用透明背景 */
+  border: 1.5px solid rgba(0, 212, 255, 0.4);
   border-radius: 12px;
-  padding: clamp(0.5rem, 1vw, 1rem);
+  padding: 0.75rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -182,9 +221,8 @@ const displayGoods = computed(() => {
   position: relative;
   overflow: hidden;
   min-height: 0;
-  box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.5),
-              -2px -2px 8px rgba(255, 255, 255, 0.05),
-              inset 1px 1px 2px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 212, 255, 0.2),
+              0 6px 20px rgba(0, 153, 255, 0.15);
 }
 
 .goods-card::before {
@@ -201,11 +239,10 @@ const displayGoods = computed(() => {
 
 .goods-card:hover {
   background: linear-gradient(145deg, rgba(0, 212, 255, 0.1), rgba(0, 212, 255, 0.02));
-  border-color: var(--primary-color, #00d4ff);
-  box-shadow: 6px 6px 20px rgba(0, 0, 0, 0.6),
-              -3px -3px 12px rgba(0, 212, 255, 0.1),
-              inset 1px 1px 2px rgba(0, 212, 255, 0.2),
-              0 0 20px rgba(0, 212, 255, 0.2);
+  border-color: #00d4ff;
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4),
+              0 8px 32px rgba(0, 153, 255, 0.3),
+              inset 1px 1px 2px rgba(0, 212, 255, 0.2);
   transform: translateY(-2px) scale(1.02);
 }
 
@@ -215,20 +252,31 @@ const displayGoods = computed(() => {
 
 .goods-card-header {
   text-align: center;
-  padding-bottom: 0.25rem;
+  padding-bottom: 0.3rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.3rem;
+  flex-shrink: 0;
 }
 
 .goods-no {
-  font-size: clamp(12px, 1.2vw, 16px);
+  font-size: clamp(10px, 1vw, 12px);
   font-weight: 600;
-  color: var(--primary-color, #00d4ff);
+  color: #00d4ff;
   letter-spacing: 0.5px;
 }
 
-.goods-card-body {
+/* 3D模型容器 - 给予更多空间 */
+.goods-3d-container {
   flex: 1;
+  min-height: 0;
+  position: relative;
+  margin: 0.5rem 0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.goods-card-body {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -236,11 +284,11 @@ const displayGoods = computed(() => {
 }
 
 .goods-name {
-  font-size: clamp(14px, 1.4vw, 18px);
-  font-weight: 500;
-  color: var(--on-surface-color, #ffffff);
-  margin-bottom: 0.25rem;
-  text-align: center;
+  font-size: clamp(12px, 1.2vw, 15px);
+  font-weight: bold;
+  color: #ffffff;
+  margin-bottom: 0.2rem;
+  text-align: left;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -250,9 +298,9 @@ const displayGoods = computed(() => {
 }
 
 .goods-spec {
-  font-size: clamp(11px, 1.1vw, 14px);
-  color: var(--text-secondary, #b3e5fc);
-  text-align: center;
+  font-size: clamp(9px, 0.9vw, 11px);
+  color: rgba(255, 255, 255, 0.6);
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -262,21 +310,24 @@ const displayGoods = computed(() => {
   display: flex;
   justify-content: center;
   align-items: baseline;
-  padding-top: 0.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  margin-top: 0.25rem;
+  padding: 0.4rem 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  margin-top: 0.5rem;
 }
 
 .goods-quantity {
-  font-size: clamp(18px, 2vw, 24px);
-  font-weight: 700;
-  color: var(--success-color, #00e676);
-  margin-right: 0.5rem;
+  font-size: clamp(14px, 1.5vw, 16px);
+  font-weight: bold;
+  color: #ffffff;
+  margin-right: 0.3rem;
+  letter-spacing: 0.5px;
 }
 
 .goods-unit {
-  font-size: clamp(11px, 1.1vw, 14px);
-  color: var(--text-muted, #90a4ae);
+  font-size: clamp(10px, 1vw, 12px);
+  color: #90a4ae;
   font-weight: 400;
 }
 
@@ -297,18 +348,18 @@ const displayGoods = computed(() => {
   align-items: center;
   justify-content: center;
   text-align: center;
-  color: var(--on-surface-muted, #a0a0a0);
+  color: #a0a0a0;
 }
 
 .loading-state {
-  color: var(--primary-color, #00d4ff);
+  color: #00d4ff;
 }
 
 .loading-spinner {
   width: 40px;
   height: 40px;
   border: 3px solid rgba(0, 212, 255, 0.3);
-  border-top-color: var(--primary-color, #00d4ff);
+  border-top-color: #00d4ff;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 1rem;
@@ -319,7 +370,7 @@ const displayGoods = computed(() => {
 }
 
 .error-state {
-  color: var(--error-color, #ff5252);
+  color: #ff5252;
 }
 
 .error-icon,

@@ -2,10 +2,7 @@
   <div class="dual-station-dashboard">
     <!-- 星空背景 -->
     <div class="stars-container" ref="starsContainer"></div>
-    
-    <!-- 全局头部 -->
-    <GlobalHeader :dual-state="dualState" />
-    
+
     <!-- 双站台主体容器 -->
     <main class="stations-container">
       <StationPanel 
@@ -25,7 +22,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useWMSStore } from '../stores/wms'
-import GlobalHeader from '../components/GlobalHeader.vue'
 import StationPanel from '../components/StationPanel.vue'
 import { HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr'
 import type { HubConnection } from '@microsoft/signalr'
@@ -126,10 +122,11 @@ onMounted(async () => {
   // 生成星空背景
   generateStars()
   
-  // 数据刷新定时器
+  // 数据刷新定时器（参考Flutter设计：10秒轮询，配合SignalR实时推送）
+  // 主要用于确保数据一致性，SignalR是主要的数据更新方式
   const refreshTimer = setInterval(() => {
     wmsStore.refreshDualStationData()
-  }, 3000)
+  }, 10000) // 10秒刷新一次
   
   // 初始化双站台数据
   console.log('正在初始化双站台数据...')
@@ -157,13 +154,13 @@ document.addEventListener('keydown', (e) => {
 </script>
 
 <style scoped>
-/* CSS变量定义 */
+/* Flutter主题配色方案 */
 :root {
   --primary-color: #00d4ff;
-  --secondary-color: #7c4dff;
+  --secondary-color: #0099ff;
   --accent-color: #00bfa5;
-  --surface-color: #0a0a0a;
-  --surface-elevated: #1a1a1a;
+  --surface-color: #0a0e27;  /* Flutter背景色 */
+  --surface-elevated: #1a1f3a;  /* Flutter表面色 */
   --surface-glass: rgba(255, 255, 255, 0.02);
   --on-surface-color: #ffffff;
   --on-surface-muted: #a0a0a0;
@@ -177,6 +174,7 @@ document.addEventListener('keydown', (e) => {
   --border-color: rgba(255, 255, 255, 0.1);
   --shadow-color: rgba(0, 0, 0, 0.3);
   --glow-color: rgba(0, 212, 255, 0.3);
+  --container-color: #ff9800;  /* 容器编码橙色 */
 }
 
 * {
@@ -236,7 +234,7 @@ document.addEventListener('keydown', (e) => {
 }
 
 .stations-container {
-  height: 92vh;
+  height: 100vh;
   display: flex;
   position: relative;
   z-index: 1;
@@ -247,7 +245,7 @@ document.addEventListener('keydown', (e) => {
 .station-left,
 .station-right {
   width: 50vw;
-  height: 92vh;
+  height: 100vh;
 }
 
 /* 全局滚动条样式 */
@@ -310,12 +308,12 @@ document.addEventListener('keydown', (e) => {
 /* 开发模式窗口适配 */
 @media (max-width: 1600px) and (max-height: 900px) {
   .stations-container {
-    height: calc(100vh - 60px);
+    height: 100vh;
   }
-  
+
   .station-left,
   .station-right {
-    height: calc(100vh - 60px);
+    height: 100vh;
   }
 }
 

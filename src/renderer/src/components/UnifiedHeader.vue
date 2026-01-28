@@ -1,5 +1,5 @@
 <template>
-  <header class="global-header">
+  <header class="unified-header">
     <!-- 左侧图标 -->
     <div class="header-left">
       <div class="header-icon">
@@ -10,14 +10,27 @@
     </div>
 
     <!-- 居中标题 -->
-    <h1 class="system-title">{{ title }}</h1>
+    <h1 class="system-title">{{ displayTitle }}</h1>
 
     <!-- 右侧控件组 -->
     <div class="header-right">
-      <!-- 连接状态 (单一状态) -->
+      <!-- 站台切换器（始终显示） -->
+      <div class="station-switcher">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.8;">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+        </svg>
+        <span class="station-label">站台</span>
+        <select v-model="selectedStation" @change="onStationChange" class="station-select">
+          <option v-for="station in availableStations" :key="station" :value="station">
+            {{ station }}
+          </option>
+        </select>
+      </div>
+
+      <!-- 连接状态 -->
       <div class="connection-status">
-        <div class="status-dot" :class="getStatusClass(dualState.globalConnectionStatus.wcsConnectionStatus)"></div>
-        <span class="status-text">{{ getStatusText(dualState.globalConnectionStatus.wcsConnectionStatus) }}</span>
+        <div class="status-dot" :class="getStatusClass(connectionStatus)"></div>
+        <span class="status-text">{{ getStatusText(connectionStatus) }}</span>
       </div>
 
       <!-- 当前时间 -->
@@ -30,16 +43,52 @@
 </template>
 
 <script setup lang="ts">
-import type { DualStationState } from '../stores/wms'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useWMSStore } from '../stores/wms'
 
 interface Props {
-  dualState: DualStationState
-  title?: string
+  mode: 'single' | 'dual'
+  currentStation?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  title: '双站台监控中心'
+  currentStation: 'Tran3001'
+})
+
+const emit = defineEmits<{
+  (e: 'station-change', station: string): void
+}>()
+
+const wmsStore = useWMSStore()
+
+// 站台切换（单站台模式）
+const selectedStation = ref(props.currentStation)
+const availableStations = ref(['Tran3001', 'Tran3002', 'Tran3003', 'Tran3004'])
+
+watch(() => props.currentStation, (newStation) => {
+  selectedStation.value = newStation
+})
+
+const onStationChange = () => {
+  emit('station-change', selectedStation.value)
+}
+
+// 标题显示
+const displayTitle = computed(() => {
+  if (props.mode === 'dual') {
+    return '双站台监控中心'
+  } else {
+    return `${selectedStation.value} 站台看板`
+  }
+})
+
+// 连接状态（从store获取）
+const connectionStatus = computed(() => {
+  if (props.mode === 'dual') {
+    return wmsStore.getDualStationState().globalConnectionStatus.wcsConnectionStatus
+  } else {
+    return wmsStore.getState().wcsConnectionStatus
+  }
 })
 
 // 时间显示
@@ -54,7 +103,7 @@ const updateTime = () => {
 
 // 状态处理
 const getStatusClass = (status: string) => {
-  const statusMap = {
+  const statusMap: Record<string, string> = {
     'connecting': 'reconnecting',
     'connected': 'connected',
     'reconnecting': 'reconnecting',
@@ -65,7 +114,7 @@ const getStatusClass = (status: string) => {
 }
 
 const getStatusText = (status: string) => {
-  const statusMap = {
+  const statusMap: Record<string, string> = {
     'connecting': '连接中',
     'connected': '已连接',
     'reconnecting': '重连中',
@@ -91,8 +140,8 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Flutter风格头部 */
-.global-header {
+/* Flutter风格统一头部 */
+.unified-header {
   height: 8vh;
   min-height: 60px;
   max-height: 80px;
@@ -107,7 +156,7 @@ onUnmounted(() => {
   z-index: 10;
 }
 
-.global-header::before {
+.unified-header::before {
   content: '';
   position: absolute;
   top: 0;
@@ -157,7 +206,48 @@ onUnmounted(() => {
   gap: 1rem;
 }
 
-/* 连接状态 - 单一状态 */
+/* 站台切换器 */
+.station-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(10px);
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-size: clamp(11px, 1vw, 13px);
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+}
+
+.station-switcher:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--primary-color, #00d4ff);
+}
+
+.station-label {
+  color: var(--on-surface-color, #ffffff);
+  font-size: clamp(11px, 1vw, 13px);
+}
+
+.station-select {
+  background: transparent;
+  border: none;
+  color: var(--primary-color, #00d4ff);
+  font-size: clamp(11px, 1vw, 13px);
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  padding: 0 4px;
+}
+
+.station-select option {
+  background: var(--surface-elevated, #1a1f3a);
+  color: var(--on-surface-color, #ffffff);
+}
+
+/* 连接状态 */
 .connection-status {
   display: flex;
   align-items: center;
@@ -253,11 +343,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(10px);
-  padding: 8px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0;
   min-width: 140px;
 }
 
@@ -289,7 +375,7 @@ onUnmounted(() => {
 
 /* 响应式调整 */
 @media (max-width: 1024px) {
-  .global-header {
+  .unified-header {
     padding: 0 1rem;
   }
 
@@ -299,7 +385,6 @@ onUnmounted(() => {
 
   .current-time {
     min-width: 120px;
-    padding: 6px 12px;
   }
 }
 </style>

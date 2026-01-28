@@ -112,22 +112,12 @@ watch(() => props.stationNo, (newStation) => {
 // 使用状态管理
 const wmsStore = useWMSStore()
 
-// 🎯 新架构：获取该站台的独立状态
+// 🎯 新架构：获取该站台的独立状态（只读取需要的数据）
 const stationState = computed(() => wmsStore.getStationState(localStationNo.value))
-
-// 使用计算属性来保证响应性（读取站台独立状态）
-const stationName = computed(() => stationState.value?.stationName || localStationNo.value)
 const currentContainer = computed(() => stationState.value?.currentContainer || '')
 const localGoods = computed(() => stationState.value?.localGoods || [])
 const isLoading = computed(() => stationState.value?.isLoading || false)
 const errorMessage = computed(() => stationState.value?.errorMessage || '')
-
-// 全局状态（设备、容器列表、连接状态等）
-const globalState = wmsStore.getState()
-const devices = computed(() => globalState.devices)
-const containers = computed(() => globalState.containers)
-const wmsConnectionStatus = computed(() => globalState.wmsConnectionStatus)
-const wcsConnectionStatus = computed(() => globalState.wcsConnectionStatus)
 
 // 计算网格行数 (5列布局，最多显示15个货物)
 const gridRows = computed(() => {
@@ -168,23 +158,31 @@ const generateStars = () => {
   }
 }
 
+// F5 刷新功能处理器
+const handleF5Refresh = (e: KeyboardEvent) => {
+  if (e.key === 'F5') {
+    e.preventDefault()
+    wmsStore.refreshData()
+  }
+}
+
 // ✅ 新架构：组件只负责 UI，不管理监控
-// 监控管理由 App.vue 统一负责
-onMounted(async () => {
+onMounted(() => {
   console.log(`🚀 [${localStationNo.value}] 单站台看板启动 (纯UI模式)`)
 
   // 生成星星背景
   generateStars()
 
+  // 注册 F5 刷新事件
+  document.addEventListener('keydown', handleF5Refresh)
+
   console.log(`✅ [${localStationNo.value}] 单站台看板启动完成`)
 })
 
-// F5 刷新功能
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'F5') {
-    e.preventDefault()
-    wmsStore.refreshData()
-  }
+// ✅ 清理事件监听器，防止内存泄漏
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleF5Refresh)
+  console.log(`🧹 [${localStationNo.value}] 组件卸载，清理事件监听器`)
 })
 </script>
 

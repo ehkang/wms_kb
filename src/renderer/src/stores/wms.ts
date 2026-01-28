@@ -60,30 +60,15 @@ interface StationState {
   errorMessage: string
 }
 
-interface SingleStationData {
-  localStationNo: string
-  stationName: string
-  currentContainer: string
-  localGoods: Goods[]
-  isLoading: boolean
-  errorMessage: string
-}
-
-interface DualStationState {
-  station3002: SingleStationData
-  station3003: SingleStationData
-  // ❌ 删除：globalConnectionStatus - 连接状态应该是全局唯一的，使用 state.wcsConnectionStatus
-  devices: Record<string, Device>
-}
+// ❌ 已删除：SingleStationData 和 DualStationState 接口（旧双站台架构，已废弃）
+// 新架构使用 StationState 和 Map<string, StationState> 替代
 
 class WMSStore {
   private state: WMSState
-  private dualStationState: DualStationState
   private wmsAPI!: AxiosInstance
   private wcsAPI!: AxiosInstance
   private watchDeviceCodes = ['Crn2002', 'TranLine3000']
-  private coordinateDevices = ['Crn2001', 'Crn2002', 'RGV01']
-  private watchStationNos: string[] = []
+  // ❌ 已删除：dualStationState, coordinateDevices, watchStationNos（旧架构残留）
 
   // 🎯 新架构：站台容器映射表（4个站台的实时容器状态）
   private stationContainerMap: Map<string, string> = new Map([
@@ -128,26 +113,8 @@ class WMSStore {
       deviceTrayMap: new Map()
     })
 
-    this.dualStationState = reactive({
-      station3002: {
-        localStationNo: 'Tran3002',
-        stationName: 'Tran3002',
-        currentContainer: '',
-        localGoods: [],
-        isLoading: false,
-        errorMessage: ''
-      },
-      station3003: {
-        localStationNo: 'Tran3003',
-        stationName: 'Tran3003',
-        currentContainer: '',
-        localGoods: [],
-        isLoading: false,
-        errorMessage: ''
-      },
-      // ❌ 删除：globalConnectionStatus - 使用全局 state.wcsConnectionStatus
-      devices: {}
-    })
+    // ❌ 已删除：dualStationState 初始化（旧架构，已废弃）
+    // 新架构使用 stationStates Map 来管理所有站台状态
 
     this.initializeAPI()
   }
@@ -863,193 +830,24 @@ class WMSStore {
     }
   }
 
-  // 暴露响应式状态
-  get stationName(): string {
-    return this.state.stationName
-  }
-  get devices(): Record<string, Device> {
-    return this.state.devices
-  }
-  get containers(): Container[] {
-    return this.state.containers
-  }
-  get currentContainer(): string {
-    return this.state.currentContainer
-  }
-  get localGoods(): Goods[] {
-    return this.state.localGoods
-  }
-  get isLoading(): boolean {
-    return this.state.isLoading
-  }
-  get errorMessage(): string {
-    return this.state.errorMessage
-  }
-  get wmsConnectionStatus(): string {
-    return this.state.wmsConnectionStatus
-  }
-  get wcsConnectionStatus(): string {
-    return this.state.wcsConnectionStatus
-  }
-
-  // 导出整个响应式状态对象，让 Vue 组件可以正确追踪变化
+  // ✅ 导出整个响应式状态对象，让 Vue 组件可以正确追踪变化
   getState(): WMSState {
     return this.state
   }
 
-  // 双站台相关方法（已废弃，不再使用）
-  async initializeDualStation(): Promise<void> {
-    try {
-      // ❌ 删除：连接状态已由全局 state 统一管理
-      // 初始化双站台设备信息
-      await this.initDualStationDeviceInfo()
-
-      // 并行获取两个站台数据
-      await Promise.all([
-        this.fetchStationData('Tran3002'),
-        this.fetchStationData('Tran3003')
-      ])
-
-      // ❌ 删除：连接状态已由全局 state 统一管理
-    } catch (error) {
-      console.error('双站台初始化失败:', error)
-      // ❌ 删除：连接状态已由全局 state 统一管理
-    }
-  }
-
-  private async initDualStationDeviceInfo(): Promise<void> {
-    // ❌ 删除：连接状态已由全局 state 统一管理
-
-    // 确保 coordinateDevices 存在
-    if (!this.coordinateDevices) {
-      this.coordinateDevices = ['Crn2001', 'Crn2002', 'RGV01']
-    }
-
-    // 双站台需要监控的设备：站台设备 + 坐标设备
-    const dualStationDevices = ['Tran3002', 'Tran3003', ...this.coordinateDevices, ...this.watchDeviceCodes]
-    const uniqueDeviceCodes = [...new Set(dualStationDevices)]
-
-    for (const deviceCode of uniqueDeviceCodes) {
-      try {
-        const deviceInfo = await this.getDeviceStatus(deviceCode)
-        
-        if (deviceInfo.childrenDevice && deviceInfo.childrenDevice.length > 0) {
-          deviceInfo.childrenDevice.forEach((item: any) => {
-            this.dualStationState.devices[item.code] = item
-          })
-        } else {
-          this.dualStationState.devices[deviceInfo.code] = deviceInfo
-        }
-      } catch (error) {
-        console.error(`双站台设备 ${deviceCode} 初始化失败:`, error)
-      }
-    }
-  }
-
-  async fetchStationData(stationNo: string): Promise<void> {
-    try {
-      const stationKey = stationNo === 'Tran3002' ? 'station3002' : 'station3003'
-
-      // 获取设备信息更新站台名称（只有获取到有效名称时才更新）
-      const device = this.dualStationState.devices[stationNo]
-      if (device && device.name) {
-        this.dualStationState[stationKey].stationName = device.name
-      }
-
-      // 🔧 检查当前站台是否有托盘，并获取新的容器编码
-      let newContainerCode = ''
-      for (const [deviceCode, deviceInfo] of Object.entries(this.dualStationState.devices)) {
-        if (deviceCode === stationNo && deviceInfo.palletCode && deviceInfo.palletCode !== '0' && deviceInfo.palletCode.toString().trim() !== '') {
-          newContainerCode = deviceInfo.palletCode.toString()
-          break
-        }
-      }
-
-      // 获取当前容器编码
-      const currentContainerCode = this.dualStationState[stationKey].currentContainer
-
-      // 🎯 关键逻辑：只有在容器编码变化时才刷新数据（参考Flutter逻辑）
-      if (newContainerCode !== currentContainerCode) {
-        console.log(`${stationNo} 容器变化: ${currentContainerCode} → ${newContainerCode}`)
-
-        if (newContainerCode) {
-          // 场景1：容器出现或更换
-          this.dualStationState[stationKey].isLoading = true
-          this.dualStationState[stationKey].errorMessage = ''
-          this.dualStationState[stationKey].currentContainer = newContainerCode
-
-          // 并行获取托盘货物信息和拣货任务
-          const [res, pickTaskMap] = await Promise.all([
-            this.getContainerGoods(newContainerCode),
-            this.getPickTasks(newContainerCode)
-          ])
-
-          if (res.errCode === 0) {
-            const goods = (res.data || []) as Goods[]
-            // 合并拣货数量到货物数据
-            this.dualStationState[stationKey].localGoods = goods.map(item => ({
-              ...item,
-              pickQuantity: pickTaskMap[item.goodsNo] || 0
-            }))
-          } else {
-            this.dualStationState[stationKey].errorMessage = res.errMsg || '未知错误'
-            this.dualStationState[stationKey].localGoods = []
-          }
-
-          this.dualStationState[stationKey].isLoading = false
-        } else {
-          // 场景2：容器离开站台
-          console.log(`${stationNo} 容器离开`)
-          this.dualStationState[stationKey].currentContainer = ''
-          this.dualStationState[stationKey].localGoods = []
-          this.dualStationState[stationKey].isLoading = false
-        }
-      } else {
-        // 容器未变化，不刷新数据，避免3D模型重建
-        // console.log(`${stationNo} 容器未变化: ${currentContainerCode}`)
-      }
-    } catch (error) {
-      const stationKey = stationNo === 'Tran3002' ? 'station3002' : 'station3003'
-      this.dualStationState[stationKey].isLoading = false
-      this.dualStationState[stationKey].errorMessage = (error as Error).message || '请求失败'
-      this.dualStationState[stationKey].localGoods = []
-    }
-  }
-
-  updateStationDevice(deviceNo: string, newInfo: Device): void {
-    if (deviceNo === 'Tran3002' || deviceNo === 'Tran3003') {
-      this.dualStationState.devices[deviceNo] = newInfo
-      
-      const stationKey = deviceNo === 'Tran3002' ? 'station3002' : 'station3003'
-      // 只有获取到有效设备名称时才更新站台名称
-      if (newInfo.name) {
-        this.dualStationState[stationKey].stationName = newInfo.name
-      }
-
-      // 异步更新站台数据
-      this.fetchStationData(deviceNo).catch(console.error)
-    }
-
-    // 同时更新坐标设备
-    if (this.coordinateDevices.includes(deviceNo)) {
-      this.dualStationState.devices[deviceNo] = newInfo
-    }
-  }
-
-  getDualStationState(): DualStationState {
-    return this.dualStationState
-  }
-
-  async refreshDualStationData(): Promise<void> {
-    try {
-      await Promise.all([
-        this.fetchStationData('Tran3002'),
-        this.fetchStationData('Tran3003')
-      ])
-    } catch (error) {
-      console.error('双站台数据刷新失败:', error)
-    }
-  }
+  // ❌ 已删除所有旧双站台方法（约150行代码）：
+  // - initializeDualStation()
+  // - initDualStationDeviceInfo()
+  // - fetchStationData()
+  // - updateStationDevice()
+  // - getDualStationState()
+  // - refreshDualStationData()
+  // - 所有废弃的 getter 方法（stationName, devices, containers, currentContainer, localGoods, isLoading, errorMessage, wmsConnectionStatus, wcsConnectionStatus）
+  //
+  // 新架构使用：
+  // - getStationState(stationNo) 获取单个站台状态
+  // - registerMonitoredStation(stationNo) 注册监控
+  // - unregisterMonitoredStation(stationNo) 取消监控
 }
 
 // 创建单例

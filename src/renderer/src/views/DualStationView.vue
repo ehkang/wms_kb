@@ -5,14 +5,12 @@
 
     <!-- 双站台主体容器 -->
     <main class="stations-container">
-      <StationPanel 
-        station-id="Tran3002" 
-        :station-data="dualState.station3002" 
-        class="station-left" 
+      <SingleStation
+        station-no="Tran3002"
+        class="station-left"
       />
-      <StationPanel 
-        station-id="Tran3003" 
-        :station-data="dualState.station3003" 
+      <SingleStation
+        station-no="Tran3003"
         class="station-right"
       />
     </main>
@@ -20,25 +18,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { useWMSStore } from '../stores/wms'
-import StationPanel from '../components/StationPanel.vue'
-import { HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr'
-import type { HubConnection } from '@microsoft/signalr'
-import { API_CONFIG } from '../config/api'
+import { ref, onMounted, onUnmounted } from 'vue'
+import SingleStation from './SingleStation.vue'
 
-const wmsStore = useWMSStore()
 const starsContainer = ref<HTMLElement>()
-
-// 获取双站台状态
-const dualState = computed(() => wmsStore.getDualStationState())
-
-// SignalR 连接
-let signalRConnection: HubConnection | null = null
 
 const generateStars = () => {
   if (!starsContainer.value) return
-  
+
   const numStars = 100
   for (let i = 0; i < numStars; i++) {
     const star = document.createElement('div')
@@ -52,104 +39,11 @@ const generateStars = () => {
   }
 }
 
-const initSignalR = async () => {
-  try {
-    const url = API_CONFIG.WS_URL
-    
-    signalRConnection = new HubConnectionBuilder()
-      .withUrl(url, {
-        transport: HttpTransportType.WebSockets | HttpTransportType.LongPolling
-      })
-      .withAutomaticReconnect([0, 2000, 10000, 30000])
-      .build()
-
-    // 设备数据更新事件
-    signalRConnection.on("DeviceDataUpdate", (deviceNo: string, newInfo: any) => {
-      console.log(`双站台收到设备更新: ${deviceNo}`, newInfo)
-      // 更新站台设备
-      if (deviceNo === 'Tran3002' || deviceNo === 'Tran3003') {
-        wmsStore.updateStationDevice(deviceNo, newInfo)
-      }
-      // 更新坐标设备
-      else if (['Crn2001', 'Crn2002', 'RGV01'].includes(deviceNo)) {
-        wmsStore.updateStationDevice(deviceNo, newInfo)
-      }
-      // 更新其他监控设备
-      else if (['Crn2002', 'TranLine3000'].includes(deviceNo)) {
-        // 处理父设备的子设备更新
-        if (newInfo.childrenDevice && newInfo.childrenDevice.length > 0) {
-          newInfo.childrenDevice.forEach((childDevice: any) => {
-            if (childDevice.code === 'Tran3002' || childDevice.code === 'Tran3003') {
-              wmsStore.updateStationDevice(childDevice.code, childDevice)
-            }
-          })
-        }
-        // 同时更新父设备信息到双站台设备列表中
-        const dualState = wmsStore.getDualStationState()
-        dualState.devices[deviceNo] = newInfo
-      }
-    })
-
-    // 连接状态事件
-    signalRConnection.onreconnecting(() => {
-      const currentState = wmsStore.getDualStationState()
-      currentState.globalConnectionStatus.wcsConnectionStatus = 'reconnecting'
-    })
-
-    signalRConnection.onreconnected(() => {
-      const currentState = wmsStore.getDualStationState()
-      currentState.globalConnectionStatus.wcsConnectionStatus = 'connected'
-    })
-
-    signalRConnection.onclose(() => {
-      const currentState = wmsStore.getDualStationState()
-      currentState.globalConnectionStatus.wcsConnectionStatus = 'disconnected'
-    })
-
-    await signalRConnection.start()
-    console.log("双站台SignalR连接已建立")
-    const currentState = wmsStore.getDualStationState()
-    currentState.globalConnectionStatus.wcsConnectionStatus = 'connected'
-  } catch (error) {
-    console.error("双站台SignalR连接失败:", error)
-    const currentState = wmsStore.getDualStationState()
-    currentState.globalConnectionStatus.wcsConnectionStatus = 'error'
-  }
-}
-
 // 生命周期
-onMounted(async () => {
+onMounted(() => {
   // 生成星空背景
   generateStars()
-  
-  // 数据刷新定时器（参考Flutter设计：10秒轮询，配合SignalR实时推送）
-  // 主要用于确保数据一致性，SignalR是主要的数据更新方式
-  const refreshTimer = setInterval(() => {
-    wmsStore.refreshDualStationData()
-  }, 10000) // 10秒刷新一次
-  
-  // 初始化双站台数据
-  console.log('正在初始化双站台数据...')
-  await wmsStore.initializeDualStation()
-  
-  // 初始化SignalR连接
-  await initSignalR()
-  
-  // 清理函数
-  onUnmounted(() => {
-    clearInterval(refreshTimer)
-    if (signalRConnection) {
-      signalRConnection.stop()
-    }
-  })
-})
-
-// F5 刷新功能
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'F5') {
-    e.preventDefault()
-    wmsStore.refreshDualStationData()
-  }
+  console.log('🎯 双站台容器已加载 (包含两个 SingleStation 组件)')
 })
 </script>
 
@@ -190,8 +84,8 @@ document.addEventListener('keydown', (e) => {
               var(--surface-color);
   color: var(--on-surface-color);
   overflow: hidden;
-  height: 100vh;
-  width: 100vw;
+  height: 100%;  /* ✅ 修改：使用100%而不是100vh，适应父容器 */
+  width: 100%;   /* ✅ 修改：使用100%而不是100vw */
   font-weight: 400;
   letter-spacing: -0.01em;
   display: flex;
@@ -234,18 +128,20 @@ document.addEventListener('keydown', (e) => {
 }
 
 .stations-container {
-  height: 100vh;
   display: flex;
   position: relative;
   z-index: 1;
-  flex: 1;
-  min-height: 0;
+  flex: 1;  /* ✅ 占满父容器剩余空间 */
+  min-height: 0;  /* ✅ 允许收缩 */
+  gap: 2px;  /* 中间的小缝隙 */
+  overflow: hidden;  /* ✅ 防止溢出 */
 }
 
 .station-left,
 .station-right {
-  width: 50vw;
-  height: 100vh;
+  flex: 1;  /* 自适应宽度，各占一半 */
+  height: 100%;  /* ✅ 修改：使用100%而不是100vh */
+  min-height: 0;  /* ✅ 允许收缩 */
 }
 
 /* 全局滚动条样式 */
@@ -307,13 +203,9 @@ document.addEventListener('keydown', (e) => {
 
 /* 开发模式窗口适配 */
 @media (max-width: 1600px) and (max-height: 900px) {
-  .stations-container {
-    height: 100vh;
-  }
-
-  .station-left,
-  .station-right {
-    height: 100vh;
+  /* ✅ 移除固定高度，让flex布局自动处理 */
+  .dual-station-dashboard {
+    font-size: 13px;
   }
 }
 

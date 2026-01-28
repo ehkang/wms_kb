@@ -1,5 +1,10 @@
 <template>
-  <div class="model-3d-viewer" ref="containerRef"></div>
+  <div class="model-3d-viewer" ref="containerRef">
+    <!-- 默认提示文本：当没有加载模型时显示 -->
+    <div v-if="!hasModel" class="no-model-placeholder">
+      <span class="placeholder-text">暂无模型</span>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -21,6 +26,8 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const containerRef = ref<HTMLElement>()
+const hasModel = ref(false)  // 是否已加载模型
+
 let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
 let renderer: THREE.WebGLRenderer | null = null
@@ -153,10 +160,14 @@ async function loadModel() {
     currentMesh = null
   }
 
-  // 构建下载URL（直接使用二进制下载接口）
-  const modelUrl = `${API_CONFIG.NX_ONE_BASE_URL}/technical/drawing/model3d/download?code=${encodeURIComponent(props.goodsNo)}&version=A`
+  // 重置模型状态
+  hasModel.value = false
 
-  console.log('加载3D模型:', props.goodsNo, '→', modelUrl)
+  // ✅ 使用下载接口 + autoVersion=true 自动获取最新版本
+  // 注意：这是公共路由，无需认证
+  const modelUrl = `${API_CONFIG.NX_ONE_BASE_URL}/technical/drawing/model3d/download?code=${encodeURIComponent(props.goodsNo)}&autoVersion=true`
+
+  console.log('🎨 加载3D模型 (自动最新版本):', props.goodsNo, '→', modelUrl)
 
   try {
     // 使用fetch获取STL文件（禁用缓存）
@@ -245,11 +256,12 @@ async function loadModel() {
 
     scene.add(mesh)
     currentMesh = mesh
+    hasModel.value = true  // 标记模型已加载
 
   } catch (error) {
     console.error('3D模型加载失败:', props.goodsNo, error.message)
     console.error('请求URL:', modelUrl)
-    // 静默失败，不显示错误详情（用户体验更友好）
+    hasModel.value = false  // 加载失败，显示"暂无模型"
   }
 }
 
@@ -347,5 +359,27 @@ onUnmounted(() => {
 
 .model-3d-viewer >>> canvas {
   display: block;
+}
+
+/* 暂无模型占位符 */
+.no-model-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.placeholder-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+  letter-spacing: 1px;
 }
 </style>

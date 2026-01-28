@@ -5,6 +5,7 @@
 
     <!-- 内容区域 -->
     <div class="content">
+
       <!-- 主内容（去掉侧边栏，全屏显示货物） -->
       <main class="main-content">
         <!-- 货物信息区域 - 全屏 -->
@@ -18,7 +19,7 @@
               <div class="empty-state-icon">📦</div>
               <p class="empty-state-text">{{ currentContainer ? '该托盘暂无货物' : '当前站台暂无托盘' }}</p>
             </div>
-            <div v-else class="goods-grid-container">
+            <div v-else class="goods-grid-container" :style="gridContainerStyle">
               <!-- 货物面板标题 -->
               <div class="goods-panel-header">
                 <div class="panel-left">
@@ -85,9 +86,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useWMSStore } from '../stores/wms'
-import { HubConnectionBuilder, HttpTransportType } from '@microsoft/signalr'
-import type { HubConnection } from '@microsoft/signalr'
-import { API_CONFIG } from '../config/api'
 import Model3DViewer from '../components/Model3DViewer.vue'
 
 // Props from parent (App.vue)
@@ -103,33 +101,33 @@ const props = withDefaults(defineProps<Props>(), {
 const localStationNo = ref(props.stationNo)
 
 // Watch for station changes from parent
-watch(() => props.stationNo, async (newStation) => {
-  console.log(`📍 站台更新: ${localStationNo.value} → ${newStation}`)
-  localStationNo.value = newStation
-  wmsStore.setLocalStationNo(newStation)
+watch(() => props.stationNo, (newStation) => {
+  const oldStation = localStationNo.value
+  console.log(`📍 站台切换: ${oldStation} → ${newStation}`)
 
-  // 🔧 切换站台时不重新初始化连接，只刷新数据
-  // 保持WebSocket全局连接不断开（参考Flutter设计）
-  wmsStore.refreshData()
-  console.log(`✅ 已切换到站台: ${newStation}（保持连接）`)
+  // ✅ 新架构：监控管理由 App.vue 统一负责，这里只更新本地站台号
+  localStationNo.value = newStation
 })
 
 // 使用状态管理
 const wmsStore = useWMSStore()
 
-// 获取响应式状态
-const state = wmsStore.getState()
+// 🎯 新架构：获取该站台的独立状态
+const stationState = computed(() => wmsStore.getStationState(localStationNo.value))
 
-// 使用计算属性来保证响应性
-const stationName = computed(() => state.stationName)
-const devices = computed(() => state.devices)
-const containers = computed(() => state.containers)
-const currentContainer = computed(() => state.currentContainer)
-const localGoods = computed(() => state.localGoods)
-const isLoading = computed(() => state.isLoading)
-const errorMessage = computed(() => state.errorMessage)
-const wmsConnectionStatus = computed(() => state.wmsConnectionStatus)
-const wcsConnectionStatus = computed(() => state.wcsConnectionStatus)
+// 使用计算属性来保证响应性（读取站台独立状态）
+const stationName = computed(() => stationState.value?.stationName || localStationNo.value)
+const currentContainer = computed(() => stationState.value?.currentContainer || '')
+const localGoods = computed(() => stationState.value?.localGoods || [])
+const isLoading = computed(() => stationState.value?.isLoading || false)
+const errorMessage = computed(() => stationState.value?.errorMessage || '')
+
+// 全局状态（设备、容器列表、连接状态等）
+const globalState = wmsStore.getState()
+const devices = computed(() => globalState.devices)
+const containers = computed(() => globalState.containers)
+const wmsConnectionStatus = computed(() => globalState.wmsConnectionStatus)
+const wcsConnectionStatus = computed(() => globalState.wcsConnectionStatus)
 
 // 计算网格行数 (5列布局，最多显示15个货物)
 const gridRows = computed(() => {
@@ -137,15 +135,26 @@ const gridRows = computed(() => {
   return Math.ceil(count / 5)
 })
 
+// 计算网格容器的动态样式（根据行数调整高度）
+const gridContainerStyle = computed(() => {
+  const rows = gridRows.value
+  if (rows === 0) return {}
+
+  // 根据行数计算高度百分比
+  // 1行: 占满整个可用空间
+  // 2行: 每行占约50%
+  // 3行: 每行占约33%
+  return {
+    '--grid-rows': rows
+  }
+})
+
 // 本地状态
 const starsContainer = ref<HTMLElement>()
 
-// SignalR 连接
-let signalRConnection: HubConnection | null = null
-
 const generateStars = () => {
   if (!starsContainer.value) return
-  
+
   const numStars = 150
   for (let i = 0; i < numStars; i++) {
     const star = document.createElement('div')
@@ -159,101 +168,15 @@ const generateStars = () => {
   }
 }
 
-const initSignalR = async () => {
-  try {
-    const url = API_CONFIG.WS_URL
-    
-    signalRConnection = new HubConnectionBuilder()
-      .withUrl(url, {
-        transport: HttpTransportType.WebSockets | HttpTransportType.LongPolling
-      })
-      .withAutomaticReconnect([0, 2000, 10000, 30000])
-      .build()
-
-    // 设备数据更新事件
-    signalRConnection.on("DeviceDataUpdate", (deviceNo: string, newInfo: any) => {
-      wmsStore.updateDevice(deviceNo, newInfo)
-    })
-
-    // 连接状态事件
-    signalRConnection.onreconnecting(() => {
-      wmsStore.setWcsConnectionStatus('reconnecting')
-    })
-
-    signalRConnection.onreconnected(() => {
-      wmsStore.setWcsConnectionStatus('connected')
-    })
-
-    signalRConnection.onclose(() => {
-      wmsStore.setWcsConnectionStatus('disconnected')
-    })
-
-    await signalRConnection.start()
-    console.log("SignalR连接已建立")
-    wmsStore.setWcsConnectionStatus('connected')
-  } catch (error) {
-    console.error("SignalR连接失败:", error)
-    wmsStore.setWcsConnectionStatus('error')
-  }
-}
-
-// 生命周期
+// ✅ 新架构：组件只负责 UI，不管理监控
+// 监控管理由 App.vue 统一负责
 onMounted(async () => {
-  // 从持久化存储加载站台配置
-  if (window.api && window.api.config) {
-    try {
-      // 调试：打印配置文件路径
-      const configPath = await window.api.config.getPath()
-      console.log('持久化存储路径:', configPath)
-      
-      // 加载保存的站台
-      const savedStation = await window.api.config.get('station')
-      console.log('已保存的站台:', savedStation)
-      
-      if (savedStation && !urlParams.get('p')) {
-        // 如果有保存的站台且URL没有参数，使用保存的站台
-        localStationNo.value = savedStation
-        selectedStation.value = savedStation
-        console.log('使用持久化存储的站台:', savedStation)
-      } else {
-        console.log('使用默认站台或URL参数:', localStationNo.value)
-      }
-      
-      // 打印所有配置
-      const allConfig = await window.api.config.getAll()
-      console.log('所有配置:', allConfig)
-    } catch (error) {
-      console.error('Failed to load station from config:', error)
-    }
-  } else {
-    console.warn('Config API not available')
-  }
-  
-  // 设置当前站台编号
-  console.log('设置当前站台编号:', localStationNo.value)
-  wmsStore.setLocalStationNo(localStationNo.value)
-  
+  console.log(`🚀 [${localStationNo.value}] 单站台看板启动 (纯UI模式)`)
+
   // 生成星星背景
   generateStars()
 
-  // 数据刷新定时器（参考Flutter设计：10秒轮询，配合SignalR实时推送）
-  // 主要用于确保数据一致性，SignalR是主要的数据更新方式
-  const refreshTimer = setInterval(() => {
-    wmsStore.refreshData()
-  }, 10000) // 10秒刷新一次
-
-  // 清理函数 - 必须在 await 之前注册
-  onUnmounted(() => {
-    clearInterval(refreshTimer)
-    if (signalRConnection) {
-      signalRConnection.stop()
-    }
-  })
-
-  // 初始化
-  console.log('单站台看板启动完成')
-  await wmsStore.initialize()
-  await initSignalR()
+  console.log(`✅ [${localStationNo.value}] 单站台看板启动完成`)
 })
 
 // F5 刷新功能
@@ -302,9 +225,12 @@ document.addEventListener('keydown', (e) => {
               var(--surface-color);
   color: var(--on-surface-color);
   overflow: hidden;
+  width: 100%;  /* 自适应宽度 */
   height: 100vh;
   font-weight: 400;
   letter-spacing: -0.01em;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 动态背景粒子 */
@@ -346,7 +272,9 @@ document.addEventListener('keydown', (e) => {
   position: relative;
   z-index: 1;
   display: flex;
-  height: 100vh;
+  flex: 1;  /* 占满剩余空间 */
+  min-height: 0;  /* 关键：允许flex子元素收缩 */
+  overflow: hidden;  /* 看板项目：禁止滚动 */
 }
 
 /* 主内容区 - 全屏显示 */
@@ -356,6 +284,7 @@ document.addEventListener('keydown', (e) => {
   display: flex;
   flex-direction: column;
   position: relative;
+  overflow: hidden;  /* 看板项目：禁止滚动 */
 }
 
 /* 货物信息区域 */
@@ -364,28 +293,31 @@ document.addEventListener('keydown', (e) => {
   display: flex;
   flex-direction: column;
   padding: 0;
-  min-height: 0;
+  min-height: 0;  /* 关键：允许收缩 */
+  overflow: hidden;  /* 看板项目：禁止滚动 */
 }
 
 .goods-list {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;  /* 看板项目：禁止滚动 */
   padding: 0;
   display: flex;
-  align-items: center;
+  align-items: stretch;  /* 拉伸填充 */
   justify-content: center;
+  min-height: 0;  /* 关键：允许收缩 */
 }
 
 /* 网格容器 */
 .goods-grid-container {
   width: 100%;
-  height: 100%;
+  height: 100%;  /* 占满父容器 */
   display: flex;
   flex-direction: column;
   background: rgba(26, 31, 58, 0.4);
   border-radius: 0;
   border: none;
   overflow: hidden;
+  min-height: 0;  /* 关键：允许收缩 */
 }
 
 /* 货物面板标题 */
@@ -395,6 +327,7 @@ document.addEventListener('keydown', (e) => {
   justify-content: space-between;
   padding: 8px 12px;
   height: 48px;
+  flex-shrink: 0;  /* 不允许收缩 */
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
   border-bottom: 1px solid rgba(0, 212, 255, 0.5);
   position: relative;
@@ -457,12 +390,15 @@ document.addEventListener('keydown', (e) => {
 .goods-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-auto-rows: 1fr;
+  /* 根据行数动态调整：1行占100%，2行各50%，3行各33% */
+  grid-template-rows: repeat(var(--grid-rows, 1), 1fr);
   gap: 12px;
   width: 100%;
-  flex: 1;
+  flex: 1;  /* 占满剩余空间 */
+  min-height: 0;  /* 关键：允许收缩 */
   padding: 12px;
-  align-content: center;
+  overflow: hidden;
+  align-items: stretch;  /* 拉伸所有子元素 */
 }
 
 /* 货物卡片 - Flutter样式 */
@@ -470,7 +406,7 @@ document.addEventListener('keydown', (e) => {
   background: transparent;  /* Flutter使用透明背景 */
   border: 1.5px solid rgba(0, 212, 255, 0.4);
   border-radius: 6px;
-  padding: 10px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -479,6 +415,10 @@ document.addEventListener('keydown', (e) => {
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 212, 255, 0.15),
               0 4px 16px rgba(0, 153, 255, 0.1);
+  /* 移除固定尺寸，让卡片自适应网格单元格 */
+  width: 100%;
+  height: 100%;
+  min-height: 0;  /* 允许收缩 */
 }
 
 .goods-card::before {
@@ -509,53 +449,62 @@ document.addEventListener('keydown', (e) => {
 /* 卡片头部 - 货物编号 */
 .goods-card-header {
   text-align: center;
-  padding-bottom: 4px;
+  padding-bottom: 3px;
   border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
+  flex-shrink: 0;  /* 不允许收缩 */
+  min-height: 20px;  /* 确保最小高度 */
 }
 
 .goods-no {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--primary-color);
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* 3D模型容器 - 给予更多空间 */
+/* 3D模型容器 - 自适应空间 */
 .goods-3d-container {
   flex: 1;
-  min-height: 0;
+  min-height: 0;  /* 允许收缩 */
   position: relative;
-  margin: 12px 0;
+  margin: 6px 0;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
 }
 
 /* 卡片主体 - 商品信息 */
 .goods-card-body {
-  flex-shrink: 0;
+  flex-shrink: 0;  /* 不允许收缩 */
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  padding: 4px 0;
+  padding: 3px 0;
+  min-height: 32px;  /* 确保最小高度 */
 }
 
 .goods-name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: bold;
   color: var(--on-surface-color);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   text-align: left;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;  /* 只显示1行 */
   -webkit-box-orient: vertical;
 }
 
 .goods-spec {
-  font-size: 11px;
+  font-size: 10px;
   color: rgba(255, 255, 255, 0.6);
   text-align: left;
   overflow: hidden;
@@ -568,25 +517,38 @@ document.addEventListener('keydown', (e) => {
   display: flex;
   justify-content: center;
   align-items: baseline;
-  padding: 6px 10px;
+  padding: 4px 8px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: 6px;
+  border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  margin-top: 8px;
+  margin-top: 4px;
+  flex-shrink: 0;
 }
 
 .goods-quantity {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: bold;
   color: #ffffff;  /* Flutter使用白色 */
-  margin-right: 4px;
+  margin-right: 3px;
   letter-spacing: 0.5px;
 }
 
 .goods-unit {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
   font-weight: 400;
+}
+
+.pick-arrow {
+  color: #ff5252;
+  margin: 0 3px;
+  font-size: 14px;
+}
+
+.pick-quantity {
+  color: #ff5252;
+  font-weight: bold;
+  font-size: 14px;
 }
 
 /* 更多货物提示 */

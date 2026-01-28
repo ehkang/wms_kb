@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import SingleStation from './views/SingleStation.vue'
 import DualStationView from './views/DualStationView.vue'
 import UnifiedHeader from './components/UnifiedHeader.vue'
+import { useWMSStore } from './stores/wms'
+
+const wmsStore = useWMSStore()
 
 // 当前选中的站台
 const currentStation = ref('Tran3001')
@@ -15,6 +18,15 @@ const displayMode = computed<'single' | 'dual'>(() => {
     return 'dual'
   }
   return 'single'
+})
+
+// 计算当前应该监控的站台列表
+const monitoredStations = computed<string[]>(() => {
+  if (displayMode.value === 'dual') {
+    return ['Tran3002', 'Tran3003']
+  } else {
+    return [currentStation.value]
+  }
 })
 
 // 站台切换处理
@@ -37,7 +49,30 @@ const handleStationChange = async (station: string) => {
   console.log(`🎯 自动切换到${newMode === 'dual' ? '双站台' : '单站台'}模式`)
 }
 
+// 🎯 核心架构：全局监控管理器
+// 监听 monitoredStations 变化，自动注册/取消监控
+watch(monitoredStations, (newStations, oldStations = []) => {
+  console.log('🎯 监控站台变化:', oldStations, '→', newStations)
+
+  // 找出需要取消监控的站台（在旧列表但不在新列表）
+  const toUnregister = oldStations.filter(s => !newStations.includes(s))
+  toUnregister.forEach(station => {
+    console.log(`📍 取消监控: ${station}`)
+    wmsStore.unregisterMonitoredStation(station)
+  })
+
+  // 找出需要注册监控的站台（在新列表但不在旧列表）
+  const toRegister = newStations.filter(s => !oldStations.includes(s))
+  toRegister.forEach(station => {
+    console.log(`📍 注册监控: ${station}`)
+    wmsStore.registerMonitoredStation(station)
+  })
+}, { immediate: true }) // immediate: true 确保初始化时也执行
+
 onMounted(async () => {
+  // 初始化全局 SignalR 连接
+  await wmsStore.initialize()
+
   // 从 Electron 配置加载上次的站台选择
   if (window.api && window.api.config) {
     try {
@@ -57,6 +92,13 @@ onMounted(async () => {
     console.log(`🎯 启动单站台显示模式 (${currentStation.value})`)
   }
 })
+
+// 🎯 新架构：应用关闭时清理全局资源
+onBeforeUnmount(async () => {
+  console.log('🧹 应用关闭，清理全局资源')
+  wmsStore.cleanup()
+  await wmsStore.closeSignalR()
+})
 </script>
 
 <template>
@@ -69,8 +111,10 @@ onMounted(async () => {
     />
 
     <!-- 主体内容 -->
+    <!-- ✅ 使用 v-if 确保只渲染当前显示的页面，避免多站台同时监控 -->
+    <!-- SignalR 连接是全局单例，有 isSignalRInitialized 保护，不会重复初始化 -->
     <DualStationView v-if="displayMode === 'dual'" />
-    <SingleStation v-else :station-no="currentStation" />
+    <SingleStation v-if="displayMode === 'single'" :station-no="currentStation" />
   </div>
 </template>
 

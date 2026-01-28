@@ -82,13 +82,9 @@ const displayTitle = computed(() => {
   }
 })
 
-// 连接状态（从store获取）
+// ✅ 连接状态（全局唯一，与单站台/双站台无关）
 const connectionStatus = computed(() => {
-  if (props.mode === 'dual') {
-    return wmsStore.getDualStationState().globalConnectionStatus.wcsConnectionStatus
-  } else {
-    return wmsStore.getState().wcsConnectionStatus
-  }
+  return wmsStore.getState().wcsConnectionStatus
 })
 
 // 时间显示

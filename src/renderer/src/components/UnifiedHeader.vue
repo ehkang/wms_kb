@@ -136,15 +136,15 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Flutter风格统一头部 */
+/* Flutter风格统一头部 - 压缩版 */
 .unified-header {
-  height: 8vh;
-  min-height: 60px;
-  max-height: 80px;
+  height: 2.67vh;  /* 🔥 从8vh压缩到2.67vh (三分之一) */
+  min-height: 20px;  /* 🔥 从60px压缩到20px (三分之一) */
+  max-height: 27px;  /* 🔥 从80px压缩到27px (三分之一) */
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 2rem;
+  padding: 0 1rem;  /* 从2rem压缩到1rem */
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -169,23 +169,28 @@ onUnmounted(() => {
 }
 
 .header-icon {
-  width: 48px;
-  height: 48px;
+  width: 16px;  /* 🔥 从48px压缩到16px (三分之一) */
+  height: 16px;  /* 🔥 从48px压缩到16px (三分之一) */
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary-color, #00d4ff), var(--secondary-color, #0099ff));
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);  /* 阴影也相应缩小 */
 }
 
-/* 居中标题 */
+.header-icon svg {
+  width: 10px;  /* SVG图标缩小 */
+  height: 10px;
+}
+
+/* 居中标题 - 压缩版 */
 .system-title {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  font-size: clamp(18px, 2vw, 24px);
+  font-size: clamp(10px, 1.2vw, 12px);  /* 🔥 从18-24px压缩到10-12px */
   font-weight: 600;
   background: linear-gradient(135deg, var(--primary-color, #00d4ff), var(--secondary-color, #0099ff));
   -webkit-background-clip: text;
@@ -193,25 +198,26 @@ onUnmounted(() => {
   background-clip: text;
   letter-spacing: -0.02em;
   margin: 0;
+  line-height: 1;  /* 确保垂直居中 */
 }
 
-/* 右侧控件组 */
+/* 右侧控件组 - 压缩版 */
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.4rem;  /* 🔥 从1rem压缩到0.4rem */
 }
 
-/* 站台切换器 */
+/* 站台切换器 - 压缩版 */
 .station-switcher {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 3px;  /* 🔥 从8px压缩到3px */
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(10px);
-  padding: 10px 16px;
-  border-radius: 20px;
-  font-size: clamp(11px, 1vw, 13px);
+  padding: 2px 6px;  /* 🔥 从10px 16px压缩到2px 6px */
+  border-radius: 8px;  /* 🔥 从20px压缩到8px */
+  font-size: 9px;  /* 🔥 从11-13px压缩到9px */
   font-weight: 500;
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
@@ -222,20 +228,27 @@ onUnmounted(() => {
   border-color: var(--primary-color, #00d4ff);
 }
 
+.station-switcher svg {
+  width: 10px;  /* SVG图标缩小 */
+  height: 10px;
+}
+
 .station-label {
   color: var(--on-surface-color, #ffffff);
-  font-size: clamp(11px, 1vw, 13px);
+  font-size: 9px;  /* 🔥 从11-13px压缩到9px */
+  line-height: 1;
 }
 
 .station-select {
   background: transparent;
   border: none;
   color: var(--primary-color, #00d4ff);
-  font-size: clamp(11px, 1vw, 13px);
+  font-size: 9px;  /* 🔥 从11-13px压缩到9px */
   font-weight: 600;
   cursor: pointer;
   outline: none;
-  padding: 0 4px;
+  padding: 0 2px;  /* 从4px压缩到2px */
+  line-height: 1;
 }
 
 .station-select option {
@@ -243,16 +256,16 @@ onUnmounted(() => {
   color: var(--on-surface-color, #ffffff);
 }
 
-/* 连接状态 */
+/* 连接状态 - 压缩版 */
 .connection-status {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 3px;  /* 🔥 从8px压缩到3px */
   background: rgba(255, 255, 255, 0.02);
   backdrop-filter: blur(10px);
-  padding: 10px 16px;
-  border-radius: 20px;
-  font-size: clamp(11px, 1vw, 13px);
+  padding: 2px 6px;  /* 🔥 从10px 16px压缩到2px 6px */
+  border-radius: 8px;  /* 🔥 从20px压缩到8px */
+  font-size: 9px;  /* 🔥 从11-13px压缩到9px */
   font-weight: 500;
   border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
@@ -261,18 +274,19 @@ onUnmounted(() => {
 .connection-status:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--primary-color, #00d4ff);
-  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);  /* 阴影也压缩 */
 }
 
 .status-text {
   color: var(--on-surface-color, #ffffff);
-  font-size: clamp(11px, 1vw, 13px);
+  font-size: 9px;  /* 🔥 从11-13px压缩到9px */
+  line-height: 1;
 }
 
-/* 状态指示点 */
+/* 状态指示点 - 压缩版 */
 .status-dot {
-  width: 10px;
-  height: 10px;
+  width: 6px;  /* 🔥 从10px压缩到6px */
+  height: 6px;  /* 🔥 从10px压缩到6px */
   border-radius: 50%;
   position: relative;
   animation: pulse 2s infinite;
@@ -334,28 +348,30 @@ onUnmounted(() => {
   animation: ping 2s infinite;
 }
 
-/* 时间显示 */
+/* 时间显示 - 压缩版 */
 .current-time {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   padding: 0;
-  min-width: 140px;
+  min-width: 60px;  /* 🔥 从140px压缩到60px */
 }
 
 .time-display {
-  font-size: clamp(14px, 1.5vw, 16px);
+  font-size: 9px;  /* 🔥 从14-16px压缩到9px */
   font-weight: 600;
   color: var(--primary-color, #00d4ff);
   font-family: 'Consolas', 'Monaco', monospace;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;  /* 从1px压缩到0.5px */
+  line-height: 1;
 }
 
 .date-display {
-  font-size: clamp(10px, 1vw, 11px);
+  font-size: 8px;  /* 🔥 从10-11px压缩到8px */
   color: var(--on-surface-muted, #a0a0a0);
-  margin-top: 2px;
+  margin-top: 1px;  /* 从2px压缩到1px */
   font-family: 'Consolas', 'Monaco', monospace;
+  line-height: 1;
 }
 
 @keyframes pulse {
@@ -369,18 +385,18 @@ onUnmounted(() => {
   100% { transform: scale(2); opacity: 0; }
 }
 
-/* 响应式调整 */
+/* 响应式调整 - 压缩版 */
 @media (max-width: 1024px) {
   .unified-header {
-    padding: 0 1rem;
+    padding: 0 0.5rem;  /* 进一步压缩 */
   }
 
   .header-right {
-    gap: 0.5rem;
+    gap: 0.3rem;  /* 进一步压缩 */
   }
 
   .current-time {
-    min-width: 120px;
+    min-width: 50px;  /* 🔥 从120px压缩 */
   }
 }
 </style>

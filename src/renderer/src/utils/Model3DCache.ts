@@ -12,6 +12,7 @@
 
 import * as THREE from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { API_CONFIG } from '../config/api'
 
 // 几何体缓存接口
@@ -25,9 +26,12 @@ interface GeometryCache {
 // 渲染实例接口
 interface RenderInstance {
   id: string
-  render: () => void
+  scene: THREE.Scene
+  camera: THREE.Camera
+  targetCanvas: HTMLCanvasElement  // 🔥 目标2D canvas (用于显示)
   checkVisibility: () => boolean
   isActive: boolean
+  lastRenderTime: number  // 🔥 上次渲染时间戳
 }
 
 class Model3DCache {
@@ -37,6 +41,10 @@ class Model3DCache {
   private sharedMaterial: THREE.MeshPhysicalMaterial | null = null
   private envMap: THREE.Texture | null = null
   private geometryCache: Map<string, GeometryCache> = new Map()
+
+  // 🔥 共享离屏渲染器（全局唯一的WebGL Context）
+  private sharedRenderer: THREE.WebGLRenderer | null = null
+  private offscreenCanvas: HTMLCanvasElement | null = null
 
   // 渲染实例管理
   private renderInstances: Map<string, RenderInstance> = new Map()
@@ -61,6 +69,7 @@ class Model3DCache {
 
   private constructor() {
     this.initializeSharedResources()
+    this.initializeSharedRenderer()  // 🔥 初始化共享渲染器
     this.startCacheCleanup()
   }
 
@@ -78,40 +87,67 @@ class Model3DCache {
     try {
       // 创建临时渲染器用于生成环境贴图
       this.tempRenderer = new THREE.WebGLRenderer({ antialias: false })
-      this.tempRenderer.setSize(256, 256)  // 小尺寸足够
+      this.tempRenderer.setSize(512, 512)  // 🔥 增加到512x512，提高环境贴图质量
 
-      // 生成环境贴图
+      // 🔥 使用RoomEnvironment生成真实的环境贴图（模拟工作室光照）
       const pmremGenerator = new THREE.PMREMGenerator(this.tempRenderer)
       pmremGenerator.compileEquirectangularShader()
 
-      const scene = new THREE.Scene()
-      const geometry = new THREE.BoxGeometry(1, 1, 1)
-      const material = new THREE.MeshBasicMaterial({ color: 0x808080 })
-      const cube = new THREE.Mesh(geometry, material)
-      scene.add(cube)
-
-      this.envMap = pmremGenerator.fromScene(scene, 0.04).texture
+      const roomEnv = new RoomEnvironment(this.tempRenderer)
+      this.envMap = pmremGenerator.fromScene(roomEnv, 0.02).texture  // 🔥 从0.04降到0.02，减少模糊
 
       // 清理
       pmremGenerator.dispose()
-      geometry.dispose()
-      material.dispose()
+      roomEnv.dispose()
 
-      // 创建共享的不锈钢材质
+      // 🔥 创建共享的不锈钢材质 - 优化配置
       this.sharedMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0x8a9099,
-        metalness: 0.95,
-        roughness: 0.55,
-        envMap: this.envMap,
-        envMapIntensity: 0.6,
-        clearcoat: 0,
-        reflectivity: 0.5,
+        color: 0xe0e0e0,         // 🔥 更亮的银灰色（从0xcccccc提升到0xe0e0e0）
+        metalness: 1.0,          // 🔥 完全金属（从0.9提升到1.0）
+        roughness: 0.2,          // 🔥 更光滑（从0.3降到0.2）
+        envMap: this.envMap,     // 🔑 环境贴图（关键！用于金属反射）
+        envMapIntensity: 2.0,    // 🔥 进一步提高环境贴图强度到2.0（从1.5）
+        clearcoat: 0.15,         // 🔥 增加清漆层强度（从0.1到0.15）
+        clearcoatRoughness: 0.05,// 🔥 清漆更光滑（从0.1到0.05）
+        reflectivity: 1.0,       // 🔥 最大反射率（从0.8到1.0）
         side: THREE.DoubleSide,
         flatShading: false
       })
 
     } catch (e) {
       console.error('Failed to initialize shared resources:', e)
+    }
+  }
+
+  /**
+   * 初始化共享离屏渲染器（全局唯一的WebGL Context）
+   */
+  private initializeSharedRenderer() {
+    try {
+      // 创建离屏canvas（不需要添加到DOM）
+      this.offscreenCanvas = document.createElement('canvas')
+      this.offscreenCanvas.width = 512  // 初始尺寸，会根据实际需要调整
+      this.offscreenCanvas.height = 512
+
+      // 创建共享的WebGL渲染器
+      this.sharedRenderer = new THREE.WebGLRenderer({
+        canvas: this.offscreenCanvas,
+        antialias: true,
+        alpha: true,
+        powerPreference: 'high-performance',
+        preserveDrawingBuffer: true  // 🔑 关键！允许读取渲染结果
+      })
+
+      this.sharedRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+      this.sharedRenderer.shadowMap.enabled = true
+      this.sharedRenderer.shadowMap.type = THREE.PCFSoftShadowMap
+      this.sharedRenderer.toneMapping = THREE.ACESFilmicToneMapping
+      this.sharedRenderer.toneMappingExposure = 1.5
+      this.sharedRenderer.outputColorSpace = THREE.SRGBColorSpace
+
+      console.log('✅ Shared offscreen renderer initialized (1 WebGL Context)')
+    } catch (e) {
+      console.error('Failed to initialize shared renderer:', e)
     }
   }
 
@@ -222,14 +258,23 @@ class Model3DCache {
   }
 
   /**
-   * 注册渲染实例
+   * 注册渲染实例（新架构：接收scene、camera和目标canvas）
    */
-  registerRenderInstance(id: string, render: () => void, checkVisibility: () => boolean): void {
+  registerRenderInstance(
+    id: string,
+    scene: THREE.Scene,
+    camera: THREE.Camera,
+    targetCanvas: HTMLCanvasElement,
+    checkVisibility: () => boolean
+  ): void {
     this.renderInstances.set(id, {
       id,
-      render,
+      scene,
+      camera,
+      targetCanvas,
       checkVisibility,
-      isActive: true
+      isActive: true,
+      lastRenderTime: 0
     })
 
     // 启动动画循环（如果还未启动）
@@ -251,28 +296,58 @@ class Model3DCache {
   }
 
   /**
-   * 统一动画循环
+   * 统一动画循环（离屏渲染架构）
    */
   private animate = (currentTime: number): void => {
-    if (!this.isAnimating) return
+    if (!this.isAnimating || !this.sharedRenderer) return
 
     this.animationId = requestAnimationFrame(this.animate)
 
-    // 限制帧率
+    // 限制帧率到30fps
     const deltaTime = currentTime - this.lastFrameTime
     if (deltaTime < this.FRAME_INTERVAL) return
 
     this.lastFrameTime = currentTime - (deltaTime % this.FRAME_INTERVAL)
 
-    // 渲染所有活动的实例
-    this.renderInstances.forEach(instance => {
-      // 检查可见性
-      const isVisible = instance.checkVisibility()
+    // 🔥 虚拟化优化：只渲染可见的实例
+    const visibleInstances = Array.from(this.renderInstances.values()).filter(
+      instance => instance.isActive && instance.checkVisibility()
+    )
 
-      if (isVisible && instance.isActive) {
-        instance.render()
-      }
+    // 依次渲染每个可见实例
+    visibleInstances.forEach(instance => {
+      this.renderInstanceToCanvas(instance)
     })
+  }
+
+  /**
+   * 将单个实例渲染到其目标canvas（离屏渲染+复制）
+   */
+  private renderInstanceToCanvas(instance: RenderInstance): void {
+    if (!this.sharedRenderer || !this.offscreenCanvas) return
+
+    const { scene, camera, targetCanvas } = instance
+    const width = targetCanvas.width
+    const height = targetCanvas.height
+
+    // 调整离屏渲染器尺寸（如果需要）
+    if (this.offscreenCanvas.width !== width || this.offscreenCanvas.height !== height) {
+      this.offscreenCanvas.width = width
+      this.offscreenCanvas.height = height
+      this.sharedRenderer.setSize(width, height, false)
+    }
+
+    // 🔑 使用共享渲染器渲染当前场景
+    this.sharedRenderer.render(scene, camera)
+
+    // 🔑 将渲染结果复制到目标2D canvas
+    const ctx = targetCanvas.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, width, height)
+      ctx.drawImage(this.offscreenCanvas, 0, 0)
+    }
+
+    instance.lastRenderTime = performance.now()
   }
 
   /**
@@ -342,6 +417,16 @@ class Model3DCache {
       cached.geometry.dispose()
     })
     this.geometryCache.clear()
+
+    // 🔥 释放共享渲染器
+    if (this.sharedRenderer) {
+      this.sharedRenderer.dispose()
+      this.sharedRenderer = null
+    }
+
+    if (this.offscreenCanvas) {
+      this.offscreenCanvas = null
+    }
 
     // 释放共享资源
     if (this.sharedMaterial) {

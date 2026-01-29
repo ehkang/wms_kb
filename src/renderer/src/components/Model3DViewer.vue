@@ -26,10 +26,10 @@ const props = withDefaults(defineProps<Props>(), {
 const containerRef = ref<HTMLElement>()
 const hasModel = ref(false)
 
-// 3D场景资源
+// 🔥 3D场景资源（新架构：不再创建WebGLRenderer）
 let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
-let renderer: THREE.WebGLRenderer | null = null
+let displayCanvas: HTMLCanvasElement | null = null  // 🔥 2D canvas用于显示
 let controls: OrbitControls | null = null
 let currentMesh: THREE.Mesh | null = null
 let currentGoodsNo: string = ''
@@ -39,7 +39,7 @@ const cache = Model3DCache.getInstance()
 const instanceId = `viewer-${Date.now()}-${Math.random()}`
 
 /**
- * 初始化3D场景
+ * 初始化3D场景（新架构：使用2D canvas显示）
  */
 function init3DScene() {
   if (!containerRef.value) return
@@ -47,37 +47,32 @@ function init3DScene() {
   const width = containerRef.value.clientWidth
   const height = containerRef.value.clientHeight
 
+  // 🔥 创建2D display canvas
+  displayCanvas = document.createElement('canvas')
+  displayCanvas.width = width
+  displayCanvas.height = height
+  displayCanvas.style.width = '100%'
+  displayCanvas.style.height = '100%'
+  displayCanvas.style.display = 'block'
+  containerRef.value.appendChild(displayCanvas)
+
   // 场景
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x1a1f3a)
+  scene.background = new THREE.Color(0x3a3f5a)
 
   // 设置共享环境贴图
   const envMap = cache.getEnvMap()
   if (envMap) {
     scene.environment = envMap
+    scene.backgroundBlurriness = 0.5
   }
 
   // 相机
   camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 1000)
   camera.position.set(0, 50, 100)
 
-  // 渲染器（优化配置）
-  renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true,
-    powerPreference: 'high-performance'
-  })
-  renderer.setSize(width, height)
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-  renderer.shadowMap.enabled = true
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap
-  renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 1.2
-  renderer.outputColorSpace = THREE.SRGBColorSpace
-  containerRef.value.appendChild(renderer.domElement)
-
-  // 控制器
-  controls = new OrbitControls(camera, renderer.domElement)
+  // 🔥 控制器（挂载到2D canvas，但不实际使用其渲染功能）
+  controls = new OrbitControls(camera, displayCanvas)
   controls.enableDamping = true
   controls.dampingFactor = 0.05
   controls.autoRotate = true
@@ -85,31 +80,65 @@ function init3DScene() {
   controls.enableZoom = false
   controls.enablePan = false
 
-  // 添加光照（优化：减少光源数量）
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
+  // 🔥 优化光照系统 - 简化并增强不锈钢质感
+  // 环境光 - 提供柔和的基础照明
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)  // 🔥 提升到0.5
   scene.add(ambientLight)
 
-  const mainLight = new THREE.DirectionalLight(0xffffff, 1.0)
+  // 半球光 - 模拟天空和地面的自然光照
+  const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.8)  // 🔥 提升地面到0x888888和强度到0.8
+  hemisphereLight.position.set(0, 200, 0)
+  scene.add(hemisphereLight)
+
+  // 主方向光 - 模拟工作室主光源（带轻微暖色）
+  const mainLight = new THREE.DirectionalLight(0xffffff, 1.5)  // 🔥 提升强度到1.5
   mainLight.position.set(50, 100, 50)
   mainLight.castShadow = true
+  mainLight.shadow.mapSize.width = 1024
+  mainLight.shadow.mapSize.height = 1024
   scene.add(mainLight)
 
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.5)
+  // 补光 - 柔和的补光减少阴影
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.8)  // 🔥 提升到0.8
   fillLight.position.set(-50, 50, -50)
   scene.add(fillLight)
 
-  // 注册到统一动画循环
-  cache.registerRenderInstance(instanceId, render, checkVisibility)
+  // 顶部点光源 - 增加金属高光
+  const topLight = new THREE.PointLight(0xffffff, 1.2, 500)  // 🔥 提升到1.2
+  topLight.position.set(0, 150, 0)
+  scene.add(topLight)
+
+  // 🔥 注册到统一动画循环（新架构：传递scene、camera和displayCanvas）
+  if (scene && camera && displayCanvas) {
+    cache.registerRenderInstance(instanceId, scene, camera, displayCanvas, checkVisibility)
+  }
 }
 
 /**
- * 渲染函数（由缓存管理器统一调用）
+ * 更新控制器（自动旋转等）
  */
-function render() {
-  if (!scene || !camera || !renderer || !controls) return
+function updateControls() {
+  if (controls) {
+    controls.update()
+  }
+}
 
-  controls.update()
-  renderer.render(scene, camera)
+// 🔥 添加控制器更新循环（独立于渲染循环）
+let controlsUpdateInterval: number | null = null
+
+function startControlsUpdate() {
+  if (controlsUpdateInterval) return
+
+  controlsUpdateInterval = window.setInterval(() => {
+    updateControls()
+  }, 1000 / 60)  // 60fps更新控制器
+}
+
+function stopControlsUpdate() {
+  if (controlsUpdateInterval) {
+    clearInterval(controlsUpdateInterval)
+    controlsUpdateInterval = null
+  }
 }
 
 /**
@@ -205,23 +234,30 @@ function centerAndScaleMesh(mesh: THREE.Mesh): void {
 }
 
 /**
- * 窗口大小调整
+ * 窗口大小调整（新架构：只调整canvas和相机）
  */
 function handleResize() {
-  if (!containerRef.value || !camera || !renderer) return
+  if (!containerRef.value || !camera || !displayCanvas) return
 
   const width = containerRef.value.clientWidth
   const height = containerRef.value.clientHeight
 
+  // 调整2D canvas尺寸
+  displayCanvas.width = width
+  displayCanvas.height = height
+
+  // 调整相机
   camera.aspect = width / height
   camera.updateProjectionMatrix()
-  renderer.setSize(width, height)
 }
 
 /**
- * 清理资源
+ * 清理资源（新架构：不再释放WebGLRenderer）
  */
 function cleanup() {
+  // 停止控制器更新
+  stopControlsUpdate()
+
   // 从统一动画循环注销
   cache.unregisterRenderInstance(instanceId)
 
@@ -244,13 +280,10 @@ function cleanup() {
     controls = null
   }
 
-  // 释放渲染器
-  if (renderer) {
-    renderer.dispose()
-    if (containerRef.value && renderer.domElement.parentNode === containerRef.value) {
-      containerRef.value.removeChild(renderer.domElement)
-    }
-    renderer = null
+  // 🔥 移除2D canvas
+  if (displayCanvas && containerRef.value && displayCanvas.parentNode === containerRef.value) {
+    containerRef.value.removeChild(displayCanvas)
+    displayCanvas = null
   }
 
   // 清理场景
@@ -280,6 +313,7 @@ onMounted(() => {
   // 延迟初始化，避免同时加载多个模型
   setTimeout(() => {
     init3DScene()
+    startControlsUpdate()  // 🔥 启动控制器更新
     window.addEventListener('resize', handleResize)
 
     // 初始化后加载模型

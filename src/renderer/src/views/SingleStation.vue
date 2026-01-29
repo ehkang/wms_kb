@@ -37,38 +37,49 @@
                 </div>
               </div>
 
-              <div class="goods-grid">
+              <div class="goods-grid" :data-rows="gridRows">
                 <div
                   v-for="(goods, index) in localGoods.slice(0, 15)"
                   :key="goods.goodsNo"
                   class="goods-card"
+                  :data-compact="gridRows >= 3"
                 >
-                  <div class="goods-card-header">
-                    <span class="goods-no" style="color: #00d4ff;">{{ goods.goodsNo || 'N/A' }}</span>
-                  </div>
-
-                  <!-- 3D模型查看器区域 -->
+                  <!-- 🔥 3D模型查看器 - 占据整个卡片 -->
                   <div class="goods-3d-container">
                     <Model3DViewer
                       :goods-no="goods.goodsNo || ''"
                       :container-code="currentContainer || ''"
                       :init-delay="index * 200"
                     />
-                  </div>
 
-                  <div class="goods-card-body">
-                    <div class="goods-name">{{ goods.goodsName || '未知商品' }}</div>
-                    <div class="goods-spec" style="color: #b3e5fc;">{{ goods.goodsSpec || '-' }}</div>
-                  </div>
-                  <div class="goods-card-footer">
-                    <span class="goods-quantity" style="color: #ffffff;">{{ Math.floor(goods.quantity) || 0 }}</span>
-                    <span class="goods-unit" style="color: #90a4ae;">{{ goods.unit || '件' }}</span>
+                    <!-- 🔥 漂浮信息层 - 覆盖在3D模型上 -->
+                    <div class="goods-info-overlay">
+                      <!-- 顶部：料号 -->
+                      <div class="overlay-top">
+                        <span class="goods-no">{{ goods.goodsNo || 'N/A' }}</span>
+                      </div>
 
-                    <!-- 拣货数量显示 (红色向下箭头 + 数量) -->
-                    <template v-if="goods.pickQuantity && goods.pickQuantity > 0">
-                      <span class="pick-arrow" style="color: #ff5252; margin: 0 4px;">↓</span>
-                      <span class="pick-quantity" style="color: #ff5252; font-weight: bold; font-size: 18px;">{{ Math.floor(goods.pickQuantity) }}</span>
-                    </template>
+                      <!-- 底部：名称、规格和数量信息 -->
+                      <div class="overlay-bottom">
+                        <!-- 左侧：名称和规格 -->
+                        <div class="goods-info-left">
+                          <div class="goods-name">{{ goods.goodsName || '未知商品' }}</div>
+                          <div class="goods-spec">{{ goods.goodsSpec || '-' }}</div>
+                        </div>
+
+                        <!-- 右侧：数量信息 -->
+                        <div class="quantity-info">
+                          <span class="goods-quantity">{{ Math.floor(goods.quantity) || 0 }}</span>
+                          <span class="goods-unit">{{ goods.unit || '件' }}</span>
+
+                          <!-- 拣货数量显示 (红色向下箭头 + 数量) -->
+                          <template v-if="goods.pickQuantity && goods.pickQuantity > 0">
+                            <span class="pick-arrow">↓</span>
+                            <span class="pick-quantity">{{ Math.floor(goods.pickQuantity) }}</span>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -312,13 +323,13 @@ onUnmounted(() => {
   min-height: 0;  /* 关键：允许收缩 */
 }
 
-/* 货物面板标题 */
+/* 货物面板标题 - 压缩版 */
 .goods-panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  height: 48px;
+  padding: 2px 8px;  /* 从8px 12px压缩到2px 8px */
+  height: 16px;  /* 🔥 从48px压缩到16px (三分之一) */
   flex-shrink: 0;  /* 不允许收缩 */
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
   border-bottom: 1px solid rgba(0, 212, 255, 0.5);
@@ -328,17 +339,19 @@ onUnmounted(() => {
 .panel-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;  /* 从12px压缩到4px */
 }
 
 .panel-icon {
-  font-size: 24px;
+  font-size: 12px;  /* 从24px压缩到12px */
+  line-height: 1;
 }
 
 .panel-title {
   color: var(--primary-color);
-  font-size: 16px;
+  font-size: 10px;  /* 从16px压缩到10px */
   font-weight: bold;
+  line-height: 1;
 }
 
 .panel-center {
@@ -348,34 +361,37 @@ onUnmounted(() => {
 }
 
 .container-badge {
-  padding: 4px 12px;
+  padding: 1px 6px;  /* 从4px 12px压缩到1px 6px */
   background: linear-gradient(135deg, rgba(255, 152, 0, 0.3), rgba(255, 87, 34, 0.2));
-  border: 2px solid rgba(255, 152, 0, 0.6);
-  border-radius: 20px;
+  border: 1px solid rgba(255, 152, 0, 0.6);  /* 从2px压缩到1px */
+  border-radius: 8px;  /* 从20px压缩到8px */
   color: var(--container-color);
-  font-size: 16px;
+  font-size: 10px;  /* 从16px压缩到10px */
   font-weight: bold;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;  /* 从1px压缩到0.5px */
+  line-height: 1;
 }
 
 .panel-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 6px;  /* 从16px压缩到6px */
 }
 
 .grid-info {
   color: rgba(0, 212, 255, 0.7);
-  font-size: 14px;
+  font-size: 9px;  /* 从14px压缩到9px */
+  line-height: 1;
 }
 
 .count-badge {
-  padding: 4px 12px;
+  padding: 1px 6px;  /* 从4px 12px压缩到1px 6px */
   background: rgba(0, 212, 255, 0.2);
-  border-radius: 12px;
+  border-radius: 6px;  /* 从12px压缩到6px */
   color: var(--primary-color);
-  font-size: 16px;
+  font-size: 10px;  /* 从16px压缩到10px */
   font-weight: bold;
+  line-height: 1;
 }
 
 /* 5×N 自适应网格布局 (1-3行，最多15个) */
@@ -393,24 +409,33 @@ onUnmounted(() => {
   align-items: stretch;  /* 拉伸所有子元素 */
 }
 
+/* 🎯 紧凑模式：激进减小网格间距以释放更多空间给3D模型 */
+.goods-grid[data-rows="3"] {
+  gap: 4px;  /* 🔥 从8px进一步压缩到4px */
+  padding: 4px;  /* 🔥 从8px进一步压缩到4px */
+}
+
 /* 货物卡片 - Flutter样式 */
 .goods-card {
   background: transparent;  /* Flutter使用透明背景 */
   border: 1.5px solid rgba(0, 212, 255, 0.4);
   border-radius: 6px;
-  padding: 8px;
+  padding: 0;  /* 🔥 移除内边距，让3D模型占满整个卡片 */
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 212, 255, 0.15),
               0 4px 16px rgba(0, 153, 255, 0.1);
-  /* 移除固定尺寸，让卡片自适应网格单元格 */
   width: 100%;
   height: 100%;
   min-height: 0;  /* 允许收缩 */
+}
+
+/* 🎯 紧凑模式：3行时启用 */
+.goods-card[data-compact="true"] {
+  padding: 0;  /* 🔥 保持0内边距 */
 }
 
 .goods-card::before {
@@ -438,31 +463,28 @@ onUnmounted(() => {
   transform: scaleX(1);
 }
 
-/* 卡片头部 - 货物编号 */
-.goods-card-header {
-  text-align: center;
-  padding-bottom: 3px;
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;  /* 不允许收缩 */
-  min-height: 20px;  /* 确保最小高度 */
-}
-
+/* 🔥 料号样式 */
 .goods-no {
   font-size: 11px;
   font-weight: 600;
   color: var(--primary-color);
   letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* 3D模型容器 - 自适应空间 */
+/* 🎯 紧凑模式：减小字号 */
+.goods-card[data-compact="true"] .goods-no {
+  font-size: 10px;
+}
+
+/* 🔥 3D模型容器 - 占据整个卡片 */
 .goods-3d-container {
-  flex: 1;
-  min-height: 0;  /* 允许收缩 */
+  width: 100%;
+  height: 100%;
   position: relative;
-  margin: 6px 0;
   overflow: hidden;
   border-radius: 6px;
   display: flex;
@@ -471,21 +493,72 @@ onUnmounted(() => {
   background: rgba(0, 0, 0, 0.2);
 }
 
-/* 卡片主体 - 商品信息 */
-.goods-card-body {
-  flex-shrink: 0;  /* 不允许收缩 */
+/* 🔥 漂浮信息覆盖层 */
+.goods-info-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  padding: 3px 0;
-  min-height: 32px;  /* 确保最小高度 */
+  justify-content: space-between;
+  pointer-events: none;  /* 允许点击穿透到3D模型 */
+  z-index: 10;
 }
 
+/* 🔥 顶部区域 - 料号 */
+.overlay-top {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  padding: 6px 8px;
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+.goods-card[data-compact="true"] .overlay-top {
+  padding: 4px 6px;
+}
+
+/* 🔥 底部区域 - 名称、规格和数量信息 */
+.overlay-bottom {
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
+  padding: 6px 8px;
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.goods-card[data-compact="true"] .overlay-bottom {
+  padding: 4px 6px;
+  gap: 6px;
+}
+
+/* 左侧：名称和规格 */
+.goods-info-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  min-width: 0;  /* 允许文字省略 */
+}
+
+/* 右侧：数量信息 */
+.quantity-info {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 4px;
+  flex-shrink: 0;  /* 数量信息不压缩 */
+}
+
+/* 🔥 名称和规格样式 */
 .goods-name {
   font-size: 13px;
   font-weight: bold;
   color: var(--on-surface-color);
-  margin-bottom: 2px;
   text-align: left;
   line-height: 1.2;
   overflow: hidden;
@@ -493,42 +566,73 @@ onUnmounted(() => {
   display: -webkit-box;
   -webkit-line-clamp: 1;  /* 只显示1行 */
   -webkit-box-orient: vertical;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  width: 100%;
+}
+
+/* 🎯 紧凑模式：减小字号 */
+.goods-card[data-compact="true"] .goods-name {
+  font-size: 11px;
 }
 
 .goods-spec {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  margin-top: 2px;
+  width: 100%;
 }
 
-/* 卡片底部 - 数量 */
-.goods-card-footer {
-  display: flex;
-  justify-content: center;
-  align-items: baseline;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  margin-top: 4px;
-  flex-shrink: 0;
+/* 🎯 紧凑模式：保持可读性 */
+.goods-card[data-compact="true"] .goods-spec {
+  font-size: 9px;
 }
 
+/* 🔥 数量信息样式 */
 .goods-quantity {
   font-size: 14px;
   font-weight: bold;
-  color: #ffffff;  /* Flutter使用白色 */
-  margin-right: 3px;
+  color: #ffffff;
   letter-spacing: 0.5px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* 🎯 紧凑模式：减小字号 */
+.goods-card[data-compact="true"] .goods-quantity {
+  font-size: 12px;
 }
 
 .goods-unit {
   font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 400;
+  color: #90a4ae;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* 🎯 紧凑模式：减小字号 */
+.goods-card[data-compact="true"] .goods-unit {
+  font-size: 10px;
+}
+
+/* 🔥 拣货数量样式 */
+.pick-arrow {
+  color: #ff5252;
+  margin: 0 2px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.pick-quantity {
+  color: #ff5252;
+  font-weight: bold;
+  font-size: 16px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.goods-card[data-compact="true"] .pick-quantity {
+  font-size: 14px;
 }
 
 .pick-arrow {
@@ -537,10 +641,21 @@ onUnmounted(() => {
   font-size: 14px;
 }
 
+/* 🎯 紧凑模式：减小拣货箭头 */
+.goods-card[data-compact="true"] .pick-arrow {
+  font-size: 12px;
+  margin: 0 2px;
+}
+
 .pick-quantity {
   color: #ff5252;
   font-weight: bold;
   font-size: 14px;
+}
+
+/* 🎯 紧凑模式：减小拣货数量字号 */
+.goods-card[data-compact="true"] .pick-quantity {
+  font-size: 12px;
 }
 
 /* 更多货物提示 */

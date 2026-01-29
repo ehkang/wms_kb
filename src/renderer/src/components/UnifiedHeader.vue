@@ -107,14 +107,6 @@ const onStationChange = () => {
   emit('station-change', selectedStation.value)
 }
 
-// 标题显示
-const displayTitle = computed(() => {
-  if (props.mode === 'dual') {
-    return '双站台监控中心'
-  } else {
-    return `${selectedStation.value} 站台看板`
-  }
-})
 
 // ✅ 连接状态（全局唯一，与单站台/双站台无关）
 const connectionStatus = computed(() => {

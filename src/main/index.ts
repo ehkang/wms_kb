@@ -44,7 +44,6 @@ class PersistentStore {
         this.save()
       }
     } catch (error) {
-      console.error('Failed to load preferences:', error)
       // 出错时使用默认值
       this.data = { ...this.defaults }
       // 尝试备份损坏的配置文件
@@ -62,7 +61,7 @@ class PersistentStore {
       fs.writeFileSync(tempPath, JSON.stringify(this.data, null, 2))
       fs.renameSync(tempPath, configPath)
     } catch (error) {
-      console.error('Failed to save preferences:', error)
+      // 保存失败静默处理
     }
   }
   
@@ -100,10 +99,9 @@ class PersistentStore {
       if (fs.existsSync(configPath)) {
         const backupPath = configPath + '.backup.' + Date.now()
         fs.copyFileSync(configPath, backupPath)
-        console.log(`Backed up corrupted config to: ${backupPath}`)
       }
     } catch (error) {
-      console.error('Failed to backup corrupted config:', error)
+      // 备份失败静默处理
     }
   }
   
@@ -199,15 +197,12 @@ app.whenReady().then(() => {
 
   // ✅ 生产环境自动设置开机自启
   if (!is.dev) {
-    console.log('🚀 生产环境：启用开机自启')
     app.setLoginItemSettings({
       openAtLogin: true,           // 开机自启
       openAsHidden: false,         // 不隐藏启动（直接显示窗口）
       path: process.execPath,      // 可执行文件路径
       args: []                     // 启动参数（如需要可添加 --minimized 等）
     })
-  } else {
-    console.log('🔧 开发环境：不设置开机自启')
   }
 
   // Default open or close DevTools by F12 in development
@@ -217,8 +212,6 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
 
   // IPC handlers for configuration
   ipcMain.handle('config:get', async (_, key: string) => {
@@ -258,7 +251,6 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('auto-launch:set', (_, enabled: boolean) => {
-    console.log(`${enabled ? '✅ 启用' : '❌ 禁用'}开机自启`)
     app.setLoginItemSettings({
       openAtLogin: enabled,
       openAsHidden: false,

@@ -52,6 +52,6 @@ npmRebuild: false
 # ✅ GitHub Releases 自动发布配置
 publish:
   provider: github
-  owner: your-username  # 替换为你的 GitHub 用户名
-  repo: wms_kb          # 替换为你的仓库名
+  owner: ehkang
+  repo: wms_kb
   releaseType: release

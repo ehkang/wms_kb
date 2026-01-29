@@ -83,9 +83,6 @@ jobs:
     - name: 安装依赖
       run: pnpm install --frozen-lockfile
 
-    - name: 构建前端代码
-      run: pnpm run build
-
     - name: 构建 Windows 安装包
       run: pnpm run build:win
       env:

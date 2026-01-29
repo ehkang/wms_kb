@@ -52,7 +52,6 @@ class PersistentStore {
         this.save();
       }
     } catch (error) {
-      console.error("Failed to load preferences:", error);
       this.data = { ...this.defaults };
       this.backupCorruptedConfig();
     }
@@ -65,7 +64,6 @@ class PersistentStore {
       fs__namespace.writeFileSync(tempPath, JSON.stringify(this.data, null, 2));
       fs__namespace.renameSync(tempPath, configPath);
     } catch (error) {
-      console.error("Failed to save preferences:", error);
     }
   }
   // 异步保存配置
@@ -99,10 +97,8 @@ class PersistentStore {
       if (fs__namespace.existsSync(configPath)) {
         const backupPath = configPath + ".backup." + Date.now();
         fs__namespace.copyFileSync(configPath, backupPath);
-        console.log(`Backed up corrupted config to: ${backupPath}`);
       }
     } catch (error) {
-      console.error("Failed to backup corrupted config:", error);
     }
   }
   // 获取配置值
@@ -175,7 +171,6 @@ function createWindow() {
 electron.app.whenReady().then(() => {
   utils.electronApp.setAppUserModelId("com.electron");
   if (!utils.is.dev) {
-    console.log("🚀 生产环境：启用开机自启");
     electron.app.setLoginItemSettings({
       openAtLogin: true,
       // 开机自启
@@ -186,13 +181,10 @@ electron.app.whenReady().then(() => {
       args: []
       // 启动参数（如需要可添加 --minimized 等）
     });
-  } else {
-    console.log("🔧 开发环境：不设置开机自启");
   }
   electron.app.on("browser-window-created", (_, window) => {
     utils.optimizer.watchWindowShortcuts(window);
   });
-  electron.ipcMain.on("ping", () => console.log("pong"));
   electron.ipcMain.handle("config:get", async (_, key) => {
     return store.get(key);
   });
@@ -219,7 +211,6 @@ electron.app.whenReady().then(() => {
     return settings.openAtLogin;
   });
   electron.ipcMain.handle("auto-launch:set", (_, enabled) => {
-    console.log(`${enabled ? "✅ 启用" : "❌ 禁用"}开机自启`);
     electron.app.setLoginItemSettings({
       openAtLogin: enabled,
       openAsHidden: false,

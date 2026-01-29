@@ -102,9 +102,6 @@ const localStationNo = ref(props.stationNo)
 
 // Watch for station changes from parent
 watch(() => props.stationNo, (newStation) => {
-  const oldStation = localStationNo.value
-  console.log(`📍 站台切换: ${oldStation} → ${newStation}`)
-
   // ✅ 新架构：监控管理由 App.vue 统一负责，这里只更新本地站台号
   localStationNo.value = newStation
 })
@@ -168,7 +165,6 @@ const handleF5Refresh = (e: KeyboardEvent) => {
 
 // ✅ 新架构：组件只负责 UI，不管理监控
 onMounted(() => {
-  console.log(`🚀 [${localStationNo.value}] 单站台看板启动 (纯UI模式)`)
 
   // 生成星星背景
   generateStars()
@@ -176,13 +172,11 @@ onMounted(() => {
   // 注册 F5 刷新事件
   document.addEventListener('keydown', handleF5Refresh)
 
-  console.log(`✅ [${localStationNo.value}] 单站台看板启动完成`)
 })
 
 // ✅ 清理事件监听器，防止内存泄漏
 onUnmounted(() => {
   document.removeEventListener('keydown', handleF5Refresh)
-  console.log(`🧹 [${localStationNo.value}] 组件卸载，清理事件监听器`)
 })
 </script>
 

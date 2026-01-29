@@ -27,7 +27,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
   } catch (error) {
-    console.error(error)
+    // 静默处理错误
   }
 } else {
   // @ts-ignore (define in dts)

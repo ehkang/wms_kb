@@ -31,40 +31,30 @@ const monitoredStations = computed<string[]>(() => {
 
 // 站台切换处理
 const handleStationChange = async (station: string) => {
-  console.log(`🔄 切换站台: ${currentStation.value} → ${station}`)
   currentStation.value = station
 
   // 保存到 Electron 配置
   if (window.api && window.api.config) {
     try {
       await window.api.config.set('station', station)
-      console.log(`💾 已保存站台配置: ${station}`)
     } catch (error) {
-      console.error('保存站台配置失败:', error)
     }
   }
-
-  // 根据站台自动切换模式
-  const newMode = displayMode.value
-  console.log(`🎯 自动切换到${newMode === 'dual' ? '双站台' : '单站台'}模式`)
 }
 
 // 🎯 核心架构：全局监控管理器
 // 监听 monitoredStations 变化，自动注册/取消监控
 watch(monitoredStations, (newStations, oldStations = []) => {
-  console.log('🎯 监控站台变化:', oldStations, '→', newStations)
 
   // 找出需要取消监控的站台（在旧列表但不在新列表）
   const toUnregister = oldStations.filter(s => !newStations.includes(s))
   toUnregister.forEach(station => {
-    console.log(`📍 取消监控: ${station}`)
     wmsStore.unregisterMonitoredStation(station)
   })
 
   // 找出需要注册监控的站台（在新列表但不在旧列表）
   const toRegister = newStations.filter(s => !oldStations.includes(s))
   toRegister.forEach(station => {
-    console.log(`📍 注册监控: ${station}`)
     wmsStore.registerMonitoredStation(station)
   })
 }, { immediate: true }) // immediate: true 确保初始化时也执行
@@ -79,23 +69,18 @@ onMounted(async () => {
       const savedStation = await window.api.config.get('station')
       if (savedStation) {
         currentStation.value = savedStation
-        console.log(`📂 加载上次站台配置: ${savedStation}`)
       }
     } catch (error) {
-      console.error('加载站台配置失败:', error)
     }
   }
 
   if (displayMode.value === 'dual') {
-    console.log('🎯 启动双站台显示模式 (Tran3002 + Tran3003)')
   } else {
-    console.log(`🎯 启动单站台显示模式 (${currentStation.value})`)
   }
 })
 
 // 🎯 新架构：应用关闭时清理全局资源
 onBeforeUnmount(async () => {
-  console.log('🧹 应用关闭，清理全局资源')
   wmsStore.cleanup()
   await wmsStore.closeSignalR()
 })

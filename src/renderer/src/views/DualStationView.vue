@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import SingleStation from './SingleStation.vue'
 
 const starsContainer = ref<HTMLElement>()
@@ -43,7 +43,6 @@ const generateStars = () => {
 onMounted(() => {
   // 生成星空背景
   generateStars()
-  console.log('🎯 双站台容器已加载 (包含两个 SingleStation 组件)')
 })
 </script>
 

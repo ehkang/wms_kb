@@ -22,7 +22,6 @@ if (process.contextIsolated) {
     electron.contextBridge.exposeInMainWorld("electron", preload.electronAPI);
     electron.contextBridge.exposeInMainWorld("api", api);
   } catch (error) {
-    console.error(error);
   }
 } else {
   window.electron = preload.electronAPI;

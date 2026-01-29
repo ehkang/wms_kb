@@ -187,11 +187,9 @@ class WMSStore {
    */
   async initializeSignalR(): Promise<void> {
     if (this.isSignalRInitialized) {
-      console.log('⚠️ SignalR 已初始化，跳过重复初始化')
       // ✅ 修复：即使跳过初始化，也要根据实际连接状态更新 state
       if (this.signalRConnection) {
         const currentState = this.signalRConnection.state
-        console.log(`📊 当前 SignalR 实际状态: ${currentState}`)
 
         // 根据 SignalR 的实际连接状态更新 store 状态
         switch (currentState) {
@@ -215,7 +213,6 @@ class WMSStore {
     }
 
     try {
-      console.log('🔌 初始化全局 SignalR 连接...')
       this.state.wcsConnectionStatus = 'connecting'  // ✅ 设置初始状态
       const url = API_CONFIG.WS_URL
 
@@ -233,26 +230,21 @@ class WMSStore {
 
       // 连接状态事件
       this.signalRConnection.onreconnecting(() => {
-        console.log('🔄 SignalR 重连中...')
         this.state.wcsConnectionStatus = 'reconnecting'
       })
 
       this.signalRConnection.onreconnected(() => {
-        console.log('✅ SignalR 重连成功')
         this.state.wcsConnectionStatus = 'connected'
       })
 
       this.signalRConnection.onclose(() => {
-        console.log('❌ SignalR 连接已关闭')
         this.state.wcsConnectionStatus = 'disconnected'
       })
 
       await this.signalRConnection.start()
-      console.log('✅ SignalR 全局连接已建立')
       this.state.wcsConnectionStatus = 'connected'
       this.isSignalRInitialized = true
     } catch (error) {
-      console.error('❌ SignalR 连接失败:', error)
       this.state.wcsConnectionStatus = 'error'
       throw error
     }
@@ -266,14 +258,13 @@ class WMSStore {
       // 🎯 新架构：初始化全局 SignalR 连接（只初始化一次）
       await this.initializeSignalR()
     } catch (error) {
-      console.error('初始化连接失败:', error)
       this.state.wmsConnectionStatus = 'error'
       this.state.wcsConnectionStatus = 'error'
       this.state.errorMessage = `连接失败: ${(error as Error).message}`
 
       // 重试
       setTimeout(() => {
-        this.initGetDeviceInfo().catch(console.error)
+        this.initGetDeviceInfo().catch(() => {})
       }, 3000)
     }
   }
@@ -283,7 +274,6 @@ class WMSStore {
       const response = await this.wmsAPI.get(`/Inventory/container/${containerCode}`)
       return response.data
     } catch (error) {
-      console.error('获取容器货物信息失败:', error)
       throw error
     }
   }
@@ -320,7 +310,6 @@ class WMSStore {
 
       return {}
     } catch (error) {
-      console.error('获取拣货任务失败:', error)
       return {}
     }
   }
@@ -337,7 +326,6 @@ class WMSStore {
       const response = await this.wcsAPI.get(`/getDevice/${deviceNo}`)
       return response.data
     } catch (error) {
-      console.error('获取设备状态失败:', error)
       throw error
     }
   }
@@ -347,22 +335,17 @@ class WMSStore {
     this.state.wmsConnectionStatus = 'connecting'
     // ❌ 删除：this.state.wcsConnectionStatus = 'connecting'  // SignalR 由 initializeSignalR() 管理
 
-    // 确保 coordinateDevices 存在
-    if (!this.coordinateDevices) {
-      this.coordinateDevices = ['Crn2001', 'Crn2002', 'RGV01']
-    }
-
-    const allDeviceCodes = [...this.watchDeviceCodes, ...this.coordinateDevices]
+    // 获取所有需要监听的设备
+    const coordinateDevices = ['Crn2001', 'Crn2002', 'RGV01']
+    const allDeviceCodes = [...this.watchDeviceCodes, ...coordinateDevices]
     const uniqueDeviceCodes = [...new Set(allDeviceCodes)]
 
     for (const deviceCode of uniqueDeviceCodes) {
       try {
         const deviceInfo = await this.getDeviceStatus(deviceCode)
-        // 设备信息获取成功
 
         if (deviceInfo.childrenDevice && deviceInfo.childrenDevice.length > 0) {
           deviceInfo.childrenDevice.forEach((item: any) => {
-            this.watchStationNos.push(item.code)
             this.state.devices[item.code] = item
 
             // 检查是否是当前站台
@@ -371,7 +354,6 @@ class WMSStore {
             }
           })
         } else {
-          this.watchStationNos.push(deviceInfo.code)
           this.state.devices[deviceInfo.code] = deviceInfo
 
           if (deviceInfo.code === this.state.localStationNo) {
@@ -379,7 +361,6 @@ class WMSStore {
           }
         }
       } catch (error) {
-        console.error(`设备 ${deviceCode} 初始化失败:`, error)
       }
     }
 
@@ -401,7 +382,7 @@ class WMSStore {
 
       if (device.childrenDevice && device.childrenDevice.length > 0) {
         const hasChildrenInMonitoring = device.childrenDevice.some((child: any) =>
-          this.watchStationNos.includes(child.code)
+          this.monitoredStations.has(child.code)
         )
 
         if (!hasChildrenInMonitoring) {
@@ -513,34 +494,22 @@ class WMSStore {
    * 这个方法由SignalR的DeviceDataUpdate事件调用
    */
   async updateDevice(deviceNo: string, newInfo: Device): Promise<void> {
-    // 确保 coordinateDevices 存在
-    if (!this.coordinateDevices) {
-      this.coordinateDevices = ['Crn2001', 'Crn2002', 'RGV01']
-    }
-
     // 更新设备信息到内存
-    if (this.watchStationNos.includes(deviceNo) || this.coordinateDevices.includes(deviceNo)) {
-      this.state.devices[deviceNo] = newInfo
+    this.state.devices[deviceNo] = newInfo
 
-      if (deviceNo === this.state.localStationNo) {
-        this.state.stationName = newInfo.name || newInfo.code || deviceNo
-      }
+    if (deviceNo === this.state.localStationNo) {
+      this.state.stationName = newInfo.name || newInfo.code || deviceNo
     }
 
+    // 处理子设备
     if (newInfo.childrenDevice && newInfo.childrenDevice.length > 0) {
       newInfo.childrenDevice.forEach((child) => {
-        if (this.watchStationNos.includes(child.code)) {
-          this.state.devices[child.code] = child
+        this.state.devices[child.code] = child
 
-          if (child.code === this.state.localStationNo) {
-            this.state.stationName = child.name || child.code
-          }
+        if (child.code === this.state.localStationNo) {
+          this.state.stationName = child.name || child.code
         }
       })
-    }
-
-    if (!this.watchStationNos.includes(deviceNo) && this.coordinateDevices.includes(deviceNo)) {
-      this.watchStationNos.push(deviceNo)
     }
 
     // 🎯 核心：更新站台容器映射表（4个站台）
@@ -566,15 +535,11 @@ class WMSStore {
 
       // 🎯 关键：只有容器编码真正变化时才触发状态更新
       if (newContainerCode !== oldContainerCode) {
-        console.log(`🔄 [${stationNo}] 容器变化: ${oldContainerCode} → ${newContainerCode}`)
         this.stationContainerMap.set(stationNo, newContainerCode)
 
         // ✅ 关键判断：只有当前监控的站台才触发刷新
         if (this.monitoredStations.has(stationNo)) {
-          console.log(`✅ [${stationNo}] 该站台正在被监控，触发数据刷新`)
           this.handleStationContainerChange(stationNo, oldContainerCode, newContainerCode)
-        } else {
-          console.log(`⏭️ [${stationNo}] 该站台未被监控，忽略容器变化`)
         }
       }
     })
@@ -597,7 +562,6 @@ class WMSStore {
       this.onContainerDeparture(stationNo)
     } else if (oldContainer && newContainer && oldContainer !== newContainer) {
       // 场景3：容器更换（先出后入）
-      console.log(`🔄 [${stationNo}] 容器更换: ${oldContainer} → ${newContainer}`)
       this.onContainerDeparture(stationNo)
       this.onContainerArrival(stationNo, newContainer)
     }
@@ -608,7 +572,6 @@ class WMSStore {
       this.state.errorMessage = ''
       await this.handleInfo()
     } catch (error) {
-      console.error('数据刷新失败:', error)
       this.state.errorMessage = `刷新失败: ${(error as Error).message}`
     }
   }
@@ -662,7 +625,6 @@ class WMSStore {
     if (!stationState) return
 
     try {
-      console.log(`📦 [${stationNo}] 加载货物数据: ${containerCode}`)
       stationState.isLoading = true
 
       // 并行获取货物信息和拣货任务
@@ -689,7 +651,6 @@ class WMSStore {
 
       stationState.isLoading = false
     } catch (error) {
-      console.error(`[${stationNo}] 加载货物失败:`, error)
       stationState.errorMessage = (error as Error).message || '请求失败'
       stationState.localGoods = []
       stationState.pickTaskMap = {}
@@ -705,16 +666,12 @@ class WMSStore {
     // 先停止该站台已存在的定时器
     this.stopStationRefreshTimer(stationNo)
 
-    console.log(`⏰ [${stationNo}] 启动10秒定时刷新器: ${containerCode}`)
-
     const timer = setInterval(async () => {
       // ✅ 验证容器是否还在该站台 + 站台是否还在监控中
       const currentContainer = this.stationContainerMap.get(stationNo)
       const isMonitored = this.monitoredStations.has(stationNo)
 
       if (currentContainer === containerCode && isMonitored) {
-        console.log(`🔄 [${stationNo}] 定时刷新数据: ${containerCode}`)
-
         const stationState = this.stationStates.get(stationNo)
         if (!stationState) return
 
@@ -735,16 +692,9 @@ class WMSStore {
             stationState.pickTaskMap = pickTaskMap
           }
         } catch (error) {
-          console.error(`[${stationNo}] 定时刷新失败:`, error)
         }
       } else {
         // 容器已变化或站台取消监控，停止定时器
-        if (currentContainer !== containerCode) {
-          console.log(`⏹️ [${stationNo}] 容器已变化 (${containerCode} → ${currentContainer})，停止刷新`)
-        }
-        if (!isMonitored) {
-          console.log(`⏹️ [${stationNo}] 站台已取消监控，停止刷新`)
-        }
         this.stopStationRefreshTimer(stationNo)
       }
     }, 10000) // 10秒间隔
@@ -760,7 +710,6 @@ class WMSStore {
     if (timer) {
       clearInterval(timer)
       this.stationRefreshTimers.delete(stationNo)
-      console.log(`⏹️ [${stationNo}] 停止定时刷新`)
     }
   }
 
@@ -770,11 +719,8 @@ class WMSStore {
    */
   registerMonitoredStation(stationNo: string): void {
     if (this.monitoredStations.has(stationNo)) {
-      console.log(`⚠️ [${stationNo}] 已在监控中，跳过重复注册`)
       return
     }
-
-    console.log(`📍 [${stationNo}] 注册监控站台`)
     this.monitoredStations.add(stationNo)
 
     // 更新站台名称
@@ -787,7 +733,6 @@ class WMSStore {
     // 检查该站台是否已有容器，如果有则立即加载
     const containerCode = this.stationContainerMap.get(stationNo) || ''
     if (containerCode) {
-      console.log(`🚛 [${stationNo}] 已有容器: ${containerCode}，立即加载`)
       this.onContainerArrival(stationNo, containerCode)
     }
   }
@@ -800,7 +745,6 @@ class WMSStore {
       return
     }
 
-    console.log(`📍 [${stationNo}] 取消监控站台`)
     this.monitoredStations.delete(stationNo)
     this.stopStationRefreshTimer(stationNo)
   }
@@ -809,10 +753,8 @@ class WMSStore {
    * 🎯 新架构：清理资源
    */
   cleanup(): void {
-    console.log('🧹 清理所有站台定时器')
-    this.stationRefreshTimers.forEach((timer, stationNo) => {
+    this.stationRefreshTimers.forEach((timer) => {
       clearInterval(timer)
-      console.log(`⏹️ [${stationNo}] 已清理`)
     })
     this.stationRefreshTimers.clear()
     this.monitoredStations.clear()
@@ -823,7 +765,6 @@ class WMSStore {
    */
   async closeSignalR(): Promise<void> {
     if (this.signalRConnection) {
-      console.log('🔌 关闭全局 SignalR 连接')
       await this.signalRConnection.stop()
       this.signalRConnection = null
       this.isSignalRInitialized = false
@@ -861,4 +802,4 @@ export function useWMSStore(): WMSStore {
 }
 
 // 导出类型定义供组件使用
-export type { Device, Container, Goods, WMSState, SingleStationData, DualStationState, StationState }
+export type { Device, Container, Goods, WMSState, StationState }

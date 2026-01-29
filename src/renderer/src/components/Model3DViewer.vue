@@ -129,9 +129,7 @@ function generateEnvironmentMap() {
     pmremGenerator.dispose()
     roomEnv.dispose()
 
-    console.log('环境贴图生成成功')
   } catch (e) {
-    console.warn('生成环境贴图失败，将使用基础光照:', e)
   }
 }
 
@@ -167,7 +165,6 @@ async function loadModel() {
   // 注意：这是公共路由，无需认证
   const modelUrl = `${API_CONFIG.NX_ONE_BASE_URL}/technical/drawing/model3d/download?code=${encodeURIComponent(props.goodsNo)}&autoVersion=true`
 
-  console.log('🎨 加载3D模型 (自动最新版本):', props.goodsNo, '→', modelUrl)
 
   try {
     // 使用fetch获取STL文件（禁用缓存）
@@ -185,14 +182,6 @@ async function loadModel() {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`)
     }
 
-    const contentType = response.headers.get('content-type') || ''
-    console.log('3D模型响应类型:', contentType, '料号:', props.goodsNo)
-
-    // 检查是否为有效的STL文件
-    if (contentType && !contentType.includes('stl') && !contentType.includes('octet-stream')) {
-      console.warn('响应类型不是STL:', contentType, '尝试继续解析')
-    }
-
     // 获取文件内容
     const arrayBuffer = await response.arrayBuffer()
 
@@ -201,26 +190,10 @@ async function loadModel() {
       throw new Error(`STL文件过小: ${arrayBuffer.byteLength} bytes`)
     }
 
-    // 验证STL文件头
-    const dataView = new DataView(arrayBuffer)
-    const triangleCount = dataView.getUint32(80, true) // Little Endian
-
-    // 计算预期文件大小
-    const expectedSize = 84 + triangleCount * 50
-
-    if (Math.abs(arrayBuffer.byteLength - expectedSize) > 4) {
-      console.warn('STL文件大小异常:', {
-        actual: arrayBuffer.byteLength,
-        expected: expectedSize,
-        triangleCount
-      })
-    }
-
     // 使用STLLoader解析
     const loader = new STLLoader()
     const geometry = loader.parse(arrayBuffer)
 
-    console.log('3D模型解析成功:', props.goodsNo, `三角形数: ${triangleCount}`)
 
     // 创建不锈钢材质（参考nx_one的金属材质）
     const material = new THREE.MeshPhysicalMaterial({
@@ -259,8 +232,6 @@ async function loadModel() {
     hasModel.value = true  // 标记模型已加载
 
   } catch (error) {
-    console.error('3D模型加载失败:', props.goodsNo, error.message)
-    console.error('请求URL:', modelUrl)
     hasModel.value = false  // 加载失败，显示"暂无模型"
   }
 }
@@ -357,7 +328,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.model-3d-viewer >>> canvas {
+.model-3d-viewer :deep(canvas) {
   display: block;
 }
 

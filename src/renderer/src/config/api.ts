@@ -54,11 +54,4 @@ export const API_CONFIG = {
   }
 }
 
-// 打印配置信息，方便调试
-if (isDev) {
-  console.log('API Configuration:', {
-    environment: isElectron ? 'Electron' : 'Web Browser',
-    mode: isDev ? 'Development' : 'Production',
-    config: API_CONFIG
-  })
-}
+// 配置信息已就绪

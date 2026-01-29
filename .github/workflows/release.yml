@@ -34,21 +34,15 @@ jobs:
         # 检查是否是 tag 触发
         $gitRef = "${{ github.ref }}"
 
-        if ($gitRef -match '^refs/tags/v(.+)$') {
-            # Tag 触发：使用 tag 版本号（去掉 v 前缀）
+        if ($gitRef -match '^refs/tags/(.+)$') {
+            # Tag 触发：直接使用完整的 tag 名称作为版本号
             $version = $matches[1]
-            Write-Host "✓ 使用 Git Tag 版本号: $version"
+            Write-Host "✓ 使用 Git Tag 作为版本号: $version"
         } else {
             # 非 Tag 触发：从 package.json 读取
             $packageJson = Get-Content package.json -Raw | ConvertFrom-Json
             $version = $packageJson.version
             Write-Host "✓ 使用 package.json 版本号: $version"
-        }
-
-        # 验证版本号格式
-        if ($version -notmatch '^\d+\.\d+\.\d+$') {
-            Write-Error "版本号格式不正确: $version"
-            exit 1
         }
 
         echo "APP_VERSION=$version" >> $env:GITHUB_ENV

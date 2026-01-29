@@ -11,9 +11,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { API_CONFIG } from '../config/api'
+import Model3DCache from '../utils/Model3DCache'
 
 interface Props {
   goodsNo: string
@@ -26,17 +24,23 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const containerRef = ref<HTMLElement>()
-const hasModel = ref(false)  // 是否已加载模型
+const hasModel = ref(false)
 
+// 3D场景资源
 let scene: THREE.Scene | null = null
 let camera: THREE.PerspectiveCamera | null = null
 let renderer: THREE.WebGLRenderer | null = null
 let controls: OrbitControls | null = null
 let currentMesh: THREE.Mesh | null = null
-let animationId: number | null = null
-let envMap: THREE.Texture | null = null
+let currentGoodsNo: string = ''
 
-// 初始化3D场景
+// 获取缓存管理器
+const cache = Model3DCache.getInstance()
+const instanceId = `viewer-${Date.now()}-${Math.random()}`
+
+/**
+ * 初始化3D场景
+ */
 function init3DScene() {
   if (!containerRef.value) return
 
@@ -47,22 +51,26 @@ function init3DScene() {
   scene = new THREE.Scene()
   scene.background = new THREE.Color(0x1a1f3a)
 
+  // 设置共享环境贴图
+  const envMap = cache.getEnvMap()
+  if (envMap) {
+    scene.environment = envMap
+  }
+
   // 相机
   camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 1000)
   camera.position.set(0, 50, 100)
 
-  // 渲染器（增强渲染质量）
+  // 渲染器（优化配置）
   renderer = new THREE.WebGLRenderer({
     antialias: true,
     alpha: true,
     powerPreference: 'high-performance'
   })
   renderer.setSize(width, height)
-  // 限制像素比避免性能问题，同时保持清晰度
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
-  // 色调映射，让金属材质更真实
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.2
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -77,166 +85,128 @@ function init3DScene() {
   controls.enableZoom = false
   controls.enablePan = false
 
-  // 优化光照以展现金属质感（参考nx_one）
-  // 环境光 - 提供基础照明
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.3)
+  // 添加光照（优化：减少光源数量）
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.4)
   scene.add(ambientLight)
 
-  // 半球光 - 模拟天空和地面的漫反射
-  const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5)
-  hemisphereLight.position.set(0, 200, 0)
-  scene.add(hemisphereLight)
-
-  // 主方向光 - 模拟主光源
-  const mainLight = new THREE.DirectionalLight(0xffffff, 1.2)
+  const mainLight = new THREE.DirectionalLight(0xffffff, 1.0)
   mainLight.position.set(50, 100, 50)
   mainLight.castShadow = true
   scene.add(mainLight)
 
-  // 补光 - 减少阴影过暗
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.6)
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.5)
   fillLight.position.set(-50, 50, -50)
   scene.add(fillLight)
 
-  // 顶部点光源 - 增加高光效果
-  const topLight = new THREE.PointLight(0xffffff, 0.8, 500)
-  topLight.position.set(0, 150, 0)
-  scene.add(topLight)
-
-  // 生成环境贴图（用于金属材质的真实反射效果）
-  generateEnvironmentMap()
-
-  // 开始动画循环
-  animate()
+  // 注册到统一动画循环
+  cache.registerRenderInstance(instanceId, render, checkVisibility)
 }
 
-// 生成环境贴图
-function generateEnvironmentMap() {
-  if (!renderer || !scene) return
-
-  try {
-    // 使用 PMREMGenerator 生成环境贴图
-    const pmremGenerator = new THREE.PMREMGenerator(renderer)
-    pmremGenerator.compileEquirectangularShader()
-
-    // 使用 RoomEnvironment 创建室内环境（模拟工作室光照）
-    const roomEnv = new RoomEnvironment(renderer)
-    envMap = pmremGenerator.fromScene(roomEnv, 0.04).texture
-
-    // 设置场景环境
-    scene.environment = envMap
-
-    pmremGenerator.dispose()
-    roomEnv.dispose()
-
-  } catch (e) {
-  }
-}
-
-// 动画循环
-function animate() {
+/**
+ * 渲染函数（由缓存管理器统一调用）
+ */
+function render() {
   if (!scene || !camera || !renderer || !controls) return
 
-  animationId = requestAnimationFrame(animate)
   controls.update()
   renderer.render(scene, camera)
 }
 
-// 加载STL模型
+/**
+ * 检查组件是否在视口内
+ */
+function checkVisibility(): boolean {
+  if (!containerRef.value) return false
+
+  const rect = containerRef.value.getBoundingClientRect()
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth
+
+  return (
+    rect.bottom > 0 &&
+    rect.right > 0 &&
+    rect.top < viewportHeight &&
+    rect.left < viewportWidth
+  )
+}
+
+/**
+ * 加载STL模型（使用缓存）
+ */
 async function loadModel() {
-  if (!scene || !props.goodsNo) return
+  if (!scene || !props.goodsNo) {
+    hasModel.value = false
+    return
+  }
 
   // 清除旧模型
   if (currentMesh) {
     scene.remove(currentMesh)
-    currentMesh.geometry.dispose()
-    if (Array.isArray(currentMesh.material)) {
-      currentMesh.material.forEach(mat => mat.dispose())
-    } else {
-      currentMesh.material.dispose()
-    }
+    // 注意：不dispose几何体，因为它是从缓存获取的，由缓存管理器负责
+    currentMesh.geometry.dispose()  // dispose克隆的geometry
+    // 不dispose材质，因为是共享的
     currentMesh = null
   }
 
-  // 重置模型状态
+  // 释放旧的几何体引用
+  if (currentGoodsNo) {
+    cache.releaseGeometry(currentGoodsNo)
+  }
+
   hasModel.value = false
 
-  // ✅ 使用下载接口 + autoVersion=true 自动获取最新版本
-  // 注意：这是公共路由，无需认证
-  const modelUrl = `${API_CONFIG.NX_ONE_BASE_URL}/technical/drawing/model3d/download?code=${encodeURIComponent(props.goodsNo)}&autoVersion=true`
-
-
   try {
-    // 使用fetch获取STL文件（禁用缓存）
-    const response = await fetch(modelUrl, {
-      method: 'GET',
-      cache: 'no-cache',
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }
-    })
+    // 从缓存获取几何体
+    const geometry = await cache.getGeometry(props.goodsNo)
+    currentGoodsNo = props.goodsNo
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+    // 获取共享材质
+    const material = cache.getSharedMaterial()
+    if (!material) {
+      throw new Error('共享材质未初始化')
     }
 
-    // 获取文件内容
-    const arrayBuffer = await response.arrayBuffer()
-
-    // 验证文件大小
-    if (arrayBuffer.byteLength < 84) {
-      throw new Error(`STL文件过小: ${arrayBuffer.byteLength} bytes`)
-    }
-
-    // 使用STLLoader解析
-    const loader = new STLLoader()
-    const geometry = loader.parse(arrayBuffer)
-
-
-    // 创建不锈钢材质（参考nx_one的金属材质）
-    const material = new THREE.MeshPhysicalMaterial({
-      color: 0x8a9099,         // 不锈钢灰色
-      metalness: 0.95,         // 高金属度
-      roughness: 0.55,         // 适中粗糙度
-      envMap: envMap,          // 环境贴图（关键！用于金属反射）
-      envMapIntensity: 0.6,    // 环境贴图强度
-      clearcoat: 0,
-      reflectivity: 0.5,
-      side: THREE.DoubleSide,
-      flatShading: false
-    })
-
+    // 创建网格
     const mesh = new THREE.Mesh(geometry, material)
     mesh.castShadow = true
     mesh.receiveShadow = true
 
-    // 居中模型
-    geometry.computeBoundingBox()
-    if (geometry.boundingBox) {
-      const center = new THREE.Vector3()
-      geometry.boundingBox.getCenter(center)
-      geometry.translate(-center.x, -center.y, -center.z)
-
-      // 自适应缩放
-      const size = new THREE.Vector3()
-      geometry.boundingBox.getSize(size)
-      const maxDim = Math.max(size.x, size.y, size.z)
-      const scale = 50 / maxDim
-      mesh.scale.set(scale, scale, scale)
-    }
+    // 居中和缩放模型
+    centerAndScaleMesh(mesh)
 
     scene.add(mesh)
     currentMesh = mesh
-    hasModel.value = true  // 标记模型已加载
+    hasModel.value = true
 
   } catch (error) {
-    hasModel.value = false  // 加载失败，显示"暂无模型"
+    hasModel.value = false
+    currentGoodsNo = ''
   }
 }
 
-// 窗口大小调整
+/**
+ * 居中和缩放网格
+ */
+function centerAndScaleMesh(mesh: THREE.Mesh): void {
+  const geometry = mesh.geometry
+
+  geometry.computeBoundingBox()
+  if (geometry.boundingBox) {
+    const center = new THREE.Vector3()
+    geometry.boundingBox.getCenter(center)
+    geometry.translate(-center.x, -center.y, -center.z)
+
+    const size = new THREE.Vector3()
+    geometry.boundingBox.getSize(size)
+    const maxDim = Math.max(size.x, size.y, size.z)
+    const scale = 50 / maxDim
+    mesh.scale.set(scale, scale, scale)
+  }
+}
+
+/**
+ * 窗口大小调整
+ */
 function handleResize() {
   if (!containerRef.value || !camera || !renderer) return
 
@@ -248,43 +218,48 @@ function handleResize() {
   renderer.setSize(width, height)
 }
 
-// 清理资源
+/**
+ * 清理资源
+ */
 function cleanup() {
-  if (animationId) {
-    cancelAnimationFrame(animationId)
-    animationId = null
+  // 从统一动画循环注销
+  cache.unregisterRenderInstance(instanceId)
+
+  // 清除网格
+  if (currentMesh && scene) {
+    scene.remove(currentMesh)
+    currentMesh.geometry.dispose()  // dispose克隆的geometry
+    currentMesh = null
   }
 
-  if (currentMesh) {
-    currentMesh.geometry.dispose()
-    if (Array.isArray(currentMesh.material)) {
-      currentMesh.material.forEach(mat => mat.dispose())
-    } else {
-      currentMesh.material.dispose()
-    }
+  // 释放几何体引用
+  if (currentGoodsNo) {
+    cache.releaseGeometry(currentGoodsNo)
+    currentGoodsNo = ''
   }
 
-  if (envMap) {
-    envMap.dispose()
-    envMap = null
-  }
-
+  // 释放控制器
   if (controls) {
     controls.dispose()
+    controls = null
   }
 
+  // 释放渲染器
   if (renderer) {
     renderer.dispose()
     if (containerRef.value && renderer.domElement.parentNode === containerRef.value) {
       containerRef.value.removeChild(renderer.domElement)
     }
+    renderer = null
   }
 
-  scene = null
+  // 清理场景
+  if (scene) {
+    scene.clear()
+    scene = null
+  }
+
   camera = null
-  renderer = null
-  controls = null
-  currentMesh = null
 }
 
 // 监听goodsNo变化重新加载模型

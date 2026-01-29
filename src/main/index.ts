@@ -197,6 +197,19 @@ app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
+  // ✅ 生产环境自动设置开机自启
+  if (!is.dev) {
+    console.log('🚀 生产环境：启用开机自启')
+    app.setLoginItemSettings({
+      openAtLogin: true,           // 开机自启
+      openAsHidden: false,         // 不隐藏启动（直接显示窗口）
+      path: process.execPath,      // 可执行文件路径
+      args: []                     // 启动参数（如需要可添加 --minimized 等）
+    })
+  } else {
+    console.log('🔧 开发环境：不设置开机自启')
+  }
+
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
@@ -236,6 +249,23 @@ app.whenReady().then(() => {
   // 调试用：获取配置文件路径
   ipcMain.handle('config:getPath', async () => {
     return store.getConfigPath()
+  })
+
+  // ✅ 开机自启 IPC 处理器（方便前端查询和控制）
+  ipcMain.handle('auto-launch:get', () => {
+    const settings = app.getLoginItemSettings()
+    return settings.openAtLogin
+  })
+
+  ipcMain.handle('auto-launch:set', (_, enabled: boolean) => {
+    console.log(`${enabled ? '✅ 启用' : '❌ 禁用'}开机自启`)
+    app.setLoginItemSettings({
+      openAtLogin: enabled,
+      openAsHidden: false,
+      path: process.execPath,
+      args: []
+    })
+    return true
   })
 
   createWindow()

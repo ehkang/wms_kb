@@ -11,6 +11,11 @@ const api = {
     delete: (key: string) => ipcRenderer.invoke('config:delete', key),
     clear: () => ipcRenderer.invoke('config:clear'),
     getPath: () => ipcRenderer.invoke('config:getPath')
+  },
+  // ✅ 开机自启 API
+  autoLaunch: {
+    get: () => ipcRenderer.invoke('auto-launch:get'),
+    set: (enabled: boolean) => ipcRenderer.invoke('auto-launch:set', enabled)
   }
 }
 

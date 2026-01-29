@@ -596,8 +596,13 @@ onUnmounted(() => {
 }
 
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
   text-align: center;
-  padding: 60px 20px;
   color: #666;
 }
 

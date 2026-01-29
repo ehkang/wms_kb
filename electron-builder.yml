@@ -1,7 +1,8 @@
-appId: com.electron.app
-productName: wms_kb
+appId: com.wms.kb
+productName: WMS看板系统
 directories:
   buildResources: build
+  output: dist
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -9,15 +10,25 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!.github'
 asarUnpack:
   - resources/**
 win:
   executableName: wms_kb
+  target:
+    - nsis
+  icon: build/icon.ico
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  createStartMenuShortcut: true
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  # ✅ 安装时自动设置开机自启（通过注册表）
+  perMachine: false
+  runAfterFinish: true
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
@@ -38,6 +49,9 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
+# ✅ GitHub Releases 自动发布配置
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: your-username  # 替换为你的 GitHub 用户名
+  repo: wms_kb          # 替换为你的仓库名
+  releaseType: release

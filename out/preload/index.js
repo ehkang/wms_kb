@@ -10,6 +10,11 @@ const api = {
     delete: (key) => electron.ipcRenderer.invoke("config:delete", key),
     clear: () => electron.ipcRenderer.invoke("config:clear"),
     getPath: () => electron.ipcRenderer.invoke("config:getPath")
+  },
+  // ✅ 开机自启 API
+  autoLaunch: {
+    get: () => electron.ipcRenderer.invoke("auto-launch:get"),
+    set: (enabled) => electron.ipcRenderer.invoke("auto-launch:set", enabled)
   }
 };
 if (process.contextIsolated) {

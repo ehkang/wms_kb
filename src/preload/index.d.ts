@@ -13,6 +13,11 @@ declare global {
         clear: () => Promise<void>
         getPath: () => Promise<string>
       }
+      // ✅ 开机自启 API 类型定义
+      autoLaunch: {
+        get: () => Promise<boolean>
+        set: (enabled: boolean) => Promise<boolean>
+      }
     }
   }
 }

@@ -174,6 +174,21 @@ function createWindow() {
 }
 electron.app.whenReady().then(() => {
   utils.electronApp.setAppUserModelId("com.electron");
+  if (!utils.is.dev) {
+    console.log("🚀 生产环境：启用开机自启");
+    electron.app.setLoginItemSettings({
+      openAtLogin: true,
+      // 开机自启
+      openAsHidden: false,
+      // 不隐藏启动（直接显示窗口）
+      path: process.execPath,
+      // 可执行文件路径
+      args: []
+      // 启动参数（如需要可添加 --minimized 等）
+    });
+  } else {
+    console.log("🔧 开发环境：不设置开机自启");
+  }
   electron.app.on("browser-window-created", (_, window) => {
     utils.optimizer.watchWindowShortcuts(window);
   });
@@ -198,6 +213,20 @@ electron.app.whenReady().then(() => {
   });
   electron.ipcMain.handle("config:getPath", async () => {
     return store.getConfigPath();
+  });
+  electron.ipcMain.handle("auto-launch:get", () => {
+    const settings = electron.app.getLoginItemSettings();
+    return settings.openAtLogin;
+  });
+  electron.ipcMain.handle("auto-launch:set", (_, enabled) => {
+    console.log(`${enabled ? "✅ 启用" : "❌ 禁用"}开机自启`);
+    electron.app.setLoginItemSettings({
+      openAtLogin: enabled,
+      openAsHidden: false,
+      path: process.execPath,
+      args: []
+    });
+    return true;
   });
   createWindow();
   electron.app.on("activate", function() {

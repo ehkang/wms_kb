@@ -100,16 +100,17 @@ class Model3DCache {
       pmremGenerator.dispose()
       roomEnv.dispose()
 
-      // 🔥 创建共享的不锈钢材质 - 优化配置
+      // 🔥 创建共享的不锈钢材质 - 真实不锈钢配置
       this.sharedMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xe0e0e0,         // 🔥 更亮的银灰色（从0xcccccc提升到0xe0e0e0）
-        metalness: 1.0,          // 🔥 完全金属（从0.9提升到1.0）
-        roughness: 0.2,          // 🔥 更光滑（从0.3降到0.2）
+        color: 0x888888,         // 🔥 非常亮的银白色（接近白色的不锈钢）
+        metalness: 0.95,         // 🔥 高金属度但不是完全（0.95更真实）
+        roughness: 0.15,         // 🔥 非常光滑的表面（0.15）
         envMap: this.envMap,     // 🔑 环境贴图（关键！用于金属反射）
-        envMapIntensity: 2.0,    // 🔥 进一步提高环境贴图强度到2.0（从1.5）
-        clearcoat: 0.15,         // 🔥 增加清漆层强度（从0.1到0.15）
-        clearcoatRoughness: 0.05,// 🔥 清漆更光滑（从0.1到0.05）
-        reflectivity: 1.0,       // 🔥 最大反射率（从0.8到1.0）
+        envMapIntensity: 2.5,    // 🔥 更强的环境反射强度
+        clearcoat: 0.3,          // 🔥 增加清漆层以模拟抛光效果
+        clearcoatRoughness: 0.03,// 🔥 非常光滑的清漆层
+        reflectivity: 0.95,      // 🔥 高反射率
+        ior: 1.5,                // 🔥 折射率（增强真实感）
         side: THREE.DoubleSide,
         flatShading: false
       })
@@ -142,7 +143,7 @@ class Model3DCache {
       this.sharedRenderer.shadowMap.enabled = true
       this.sharedRenderer.shadowMap.type = THREE.PCFSoftShadowMap
       this.sharedRenderer.toneMapping = THREE.ACESFilmicToneMapping
-      this.sharedRenderer.toneMappingExposure = 1.5
+      this.sharedRenderer.toneMappingExposure = 2.0  // 🔥 提升曝光度: 1.5→2.0 以获得更亮的不锈钢效果
       this.sharedRenderer.outputColorSpace = THREE.SRGBColorSpace
 
       console.log('✅ Shared offscreen renderer initialized (1 WebGL Context)')

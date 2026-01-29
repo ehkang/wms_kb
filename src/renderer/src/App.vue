@@ -29,6 +29,32 @@ const monitoredStations = computed<string[]>(() => {
   }
 })
 
+// 计算当前容器信息（单站台模式）
+const currentContainerCode = computed<string>(() => {
+  if (displayMode.value === 'single') {
+    const state = wmsStore.getStationState(currentStation.value)
+    return state?.currentContainer || ''
+  }
+  return ''
+})
+
+// 计算容器列表（双站台模式）
+const containersList = computed(() => {
+  if (displayMode.value === 'dual') {
+    return [
+      {
+        station: 'Tran3002',
+        code: wmsStore.getStationState('Tran3002')?.currentContainer || ''
+      },
+      {
+        station: 'Tran3003',
+        code: wmsStore.getStationState('Tran3003')?.currentContainer || ''
+      }
+    ]
+  }
+  return []
+})
+
 // 站台切换处理
 const handleStationChange = async (station: string) => {
   currentStation.value = station
@@ -92,6 +118,8 @@ onBeforeUnmount(async () => {
     <UnifiedHeader
       :mode="displayMode"
       :current-station="currentStation"
+      :container-code="currentContainerCode"
+      :containers="containersList"
       @station-change="handleStationChange"
     />
 

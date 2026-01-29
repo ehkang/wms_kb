@@ -58,7 +58,7 @@ function init3DScene() {
 
   // 场景
   scene = new THREE.Scene()
-  scene.background = new THREE.Color(0x3a3f5a)
+  scene.background = new THREE.Color(0x4a5570)  // 🔥 更亮的背景色以增强不锈钢反射
 
   // 设置共享环境贴图
   const envMap = cache.getEnvMap()
@@ -80,18 +80,18 @@ function init3DScene() {
   controls.enableZoom = false
   controls.enablePan = false
 
-  // 🔥 优化光照系统 - 简化并增强不锈钢质感
+  // 🔥 优化光照系统 - 强化不锈钢质感
   // 环境光 - 提供柔和的基础照明
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)  // 🔥 提升到0.5
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)  // 🔥 提升到0.8以照亮不锈钢
   scene.add(ambientLight)
 
   // 半球光 - 模拟天空和地面的自然光照
-  const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.8)  // 🔥 提升地面到0x888888和强度到0.8
+  const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0xaaaaaa, 1.2)  // 🔥 提升地面亮度和强度
   hemisphereLight.position.set(0, 200, 0)
   scene.add(hemisphereLight)
 
-  // 主方向光 - 模拟工作室主光源（带轻微暖色）
-  const mainLight = new THREE.DirectionalLight(0xffffff, 1.5)  // 🔥 提升强度到1.5
+  // 主方向光 - 模拟工作室主光源
+  const mainLight = new THREE.DirectionalLight(0xffffff, 2.0)  // 🔥 提升到2.0
   mainLight.position.set(50, 100, 50)
   mainLight.castShadow = true
   mainLight.shadow.mapSize.width = 1024
@@ -99,14 +99,19 @@ function init3DScene() {
   scene.add(mainLight)
 
   // 补光 - 柔和的补光减少阴影
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.8)  // 🔥 提升到0.8
+  const fillLight = new THREE.DirectionalLight(0xffffff, 1.2)  // 🔥 提升到1.2
   fillLight.position.set(-50, 50, -50)
   scene.add(fillLight)
 
   // 顶部点光源 - 增加金属高光
-  const topLight = new THREE.PointLight(0xffffff, 1.2, 500)  // 🔥 提升到1.2
+  const topLight = new THREE.PointLight(0xffffff, 1.8, 500)  // 🔥 提升到1.8
   topLight.position.set(0, 150, 0)
   scene.add(topLight)
+
+  // 🔥 新增：前方补光 - 确保正面清晰可见
+  const frontLight = new THREE.DirectionalLight(0xffffff, 1.0)
+  frontLight.position.set(0, 0, 100)
+  scene.add(frontLight)
 
   // 🔥 注册到统一动画循环（新架构：传递scene、camera和displayCanvas）
   if (scene && camera && displayCanvas) {

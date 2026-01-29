@@ -20,23 +20,6 @@
               <p class="empty-state-text">{{ currentContainer ? '该托盘暂无货物' : '当前站台暂无托盘' }}</p>
             </div>
             <div v-else class="goods-grid-container" :style="gridContainerStyle">
-              <!-- 货物面板标题 -->
-              <div class="goods-panel-header">
-                <div class="panel-left">
-                  <span class="panel-icon">📦</span>
-                  <span class="panel-title">货物展示</span>
-                </div>
-                <div v-if="currentContainer" class="panel-center">
-                  <div class="container-badge">
-                    容器: {{ currentContainer }}
-                  </div>
-                </div>
-                <div class="panel-right">
-                  <span class="grid-info">5 × {{ gridRows }}</span>
-                  <span class="count-badge">{{ localGoods.length }} / 15</span>
-                </div>
-              </div>
-
               <div class="goods-grid" :data-rows="gridRows">
                 <div
                   v-for="(goods, index) in localGoods.slice(0, 15)"
@@ -323,77 +306,6 @@ onUnmounted(() => {
   min-height: 0;  /* 关键：允许收缩 */
 }
 
-/* 货物面板标题 - 压缩版 */
-.goods-panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 2px 8px;  /* 从8px 12px压缩到2px 8px */
-  height: 16px;  /* 🔥 从48px压缩到16px (三分之一) */
-  flex-shrink: 0;  /* 不允许收缩 */
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
-  border-bottom: 1px solid rgba(0, 212, 255, 0.5);
-  position: relative;
-}
-
-.panel-left {
-  display: flex;
-  align-items: center;
-  gap: 4px;  /* 从12px压缩到4px */
-}
-
-.panel-icon {
-  font-size: 12px;  /* 从24px压缩到12px */
-  line-height: 1;
-}
-
-.panel-title {
-  color: var(--primary-color);
-  font-size: 10px;  /* 从16px压缩到10px */
-  font-weight: bold;
-  line-height: 1;
-}
-
-.panel-center {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.container-badge {
-  padding: 1px 6px;  /* 从4px 12px压缩到1px 6px */
-  background: linear-gradient(135deg, rgba(255, 152, 0, 0.3), rgba(255, 87, 34, 0.2));
-  border: 1px solid rgba(255, 152, 0, 0.6);  /* 从2px压缩到1px */
-  border-radius: 8px;  /* 从20px压缩到8px */
-  color: var(--container-color);
-  font-size: 10px;  /* 从16px压缩到10px */
-  font-weight: bold;
-  letter-spacing: 0.5px;  /* 从1px压缩到0.5px */
-  line-height: 1;
-}
-
-.panel-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;  /* 从16px压缩到6px */
-}
-
-.grid-info {
-  color: rgba(0, 212, 255, 0.7);
-  font-size: 9px;  /* 从14px压缩到9px */
-  line-height: 1;
-}
-
-.count-badge {
-  padding: 1px 6px;  /* 从4px 12px压缩到1px 6px */
-  background: rgba(0, 212, 255, 0.2);
-  border-radius: 6px;  /* 从12px压缩到6px */
-  color: var(--primary-color);
-  font-size: 10px;  /* 从16px压缩到10px */
-  font-weight: bold;
-  line-height: 1;
-}
-
 /* 5×N 自适应网格布局 (1-3行，最多15个) */
 .goods-grid {
   display: grid;
@@ -409,10 +321,10 @@ onUnmounted(() => {
   align-items: stretch;  /* 拉伸所有子元素 */
 }
 
-/* 🎯 紧凑模式：激进减小网格间距以释放更多空间给3D模型 */
+/* 🎯 紧凑模式：优化网格间距以平衡美观和空间利用 */
 .goods-grid[data-rows="3"] {
-  gap: 4px;  /* 🔥 从8px进一步压缩到4px */
-  padding: 4px;  /* 🔥 从8px进一步压缩到4px */
+  gap: 8px;  /* 🔥 优化间距到8px（移除panel header后有足够空间） */
+  padding: 8px;  /* 🔥 优化内边距到8px */
 }
 
 /* 货物卡片 - Flutter样式 */
@@ -510,29 +422,29 @@ onUnmounted(() => {
 /* 🔥 顶部区域 - 料号 */
 .overlay-top {
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
-  padding: 6px 8px;
+  padding: 4px 6px;  /* 🔥 压缩padding: 6px→4px, 8px→6px */
   text-align: center;
   backdrop-filter: blur(4px);
 }
 
 .goods-card[data-compact="true"] .overlay-top {
-  padding: 4px 6px;
+  padding: 3px 5px;  /* 🔥 紧凑模式进一步压缩 */
 }
 
 /* 🔥 底部区域 - 名称、规格和数量信息 */
 .overlay-bottom {
   background: linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
-  padding: 6px 8px;
+  padding: 4px 6px;  /* 🔥 压缩padding: 6px→4px, 8px→6px */
   backdrop-filter: blur(4px);
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px;  /* 🔥 压缩gap: 8px→6px */
 }
 
 .goods-card[data-compact="true"] .overlay-bottom {
-  padding: 4px 6px;
-  gap: 6px;
+  padding: 3px 5px;  /* 🔥 紧凑模式进一步压缩 */
+  gap: 4px;  /* 🔥 紧凑模式gap压缩 */
 }
 
 /* 左侧：名称和规格 */
@@ -556,11 +468,11 @@ onUnmounted(() => {
 
 /* 🔥 名称和规格样式 */
 .goods-name {
-  font-size: 13px;
+  font-size: 11px;  /* 🔥 压缩: 13px→11px */
   font-weight: bold;
   color: var(--on-surface-color);
   text-align: left;
-  line-height: 1.2;
+  line-height: 1.1;  /* 🔥 压缩行高: 1.2→1.1 */
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -572,29 +484,29 @@ onUnmounted(() => {
 
 /* 🎯 紧凑模式：减小字号 */
 .goods-card[data-compact="true"] .goods-name {
-  font-size: 11px;
+  font-size: 10px;  /* 🔥 压缩: 11px→10px */
 }
 
 .goods-spec {
-  font-size: 10px;
+  font-size: 9px;  /* 🔥 压缩: 10px→9px */
   color: var(--text-secondary);
   text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
-  margin-top: 2px;
+  margin-top: 1px;  /* 🔥 压缩间距: 2px→1px */
   width: 100%;
 }
 
 /* 🎯 紧凑模式：保持可读性 */
 .goods-card[data-compact="true"] .goods-spec {
-  font-size: 9px;
+  font-size: 8px;  /* 🔥 压缩: 9px→8px */
 }
 
 /* 🔥 数量信息样式 */
 .goods-quantity {
-  font-size: 14px;
+  font-size: 13px;  /* 🔥 压缩: 14px→13px */
   font-weight: bold;
   color: #ffffff;
   letter-spacing: 0.5px;
@@ -603,18 +515,18 @@ onUnmounted(() => {
 
 /* 🎯 紧凑模式：减小字号 */
 .goods-card[data-compact="true"] .goods-quantity {
-  font-size: 12px;
+  font-size: 11px;  /* 🔥 压缩: 12px→11px */
 }
 
 .goods-unit {
-  font-size: 11px;
+  font-size: 10px;  /* 🔥 压缩: 11px→10px */
   color: #90a4ae;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 /* 🎯 紧凑模式：减小字号 */
 .goods-card[data-compact="true"] .goods-unit {
-  font-size: 10px;
+  font-size: 9px;  /* 🔥 压缩: 10px→9px */
 }
 
 /* 🔥 拣货数量样式 */
@@ -660,12 +572,13 @@ onUnmounted(() => {
 
 /* 更多货物提示 */
 .more-goods-hint {
-  margin-top: 8px;
-  padding: 8px 12px;
+  margin-top: 4px;  /* 🔥 压缩: 8px→4px */
+  padding: 4px 8px;  /* 🔥 压缩: 8px 12px→4px 8px */
   text-align: center;
-  font-size: 16px;
+  font-size: 11px;  /* 🔥 压缩: 16px→11px */
   color: var(--on-surface-muted);
   font-style: italic;
+  line-height: 1.2;  /* 🔥 控制行高 */
 }
 
 

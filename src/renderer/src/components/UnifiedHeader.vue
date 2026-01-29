@@ -9,12 +9,43 @@
       </div>
     </div>
 
-    <!-- 居中标题 -->
-    <h1 class="system-title">{{ displayTitle }}</h1>
+    <!-- 居中区域: 容器信息 -->
+    <div class="header-center">
+      <!-- 单站台模式: 显示容器编码或空状态 -->
+      <div v-if="mode === 'single'" class="container-badge single" :class="{ empty: !containerCode }">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.9;">
+          <path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4z"/>
+        </svg>
+        <span class="container-label">容器</span>
+        <span class="container-code">{{ containerCode || '无' }}</span>
+      </div>
+
+      <!-- 双站台模式: 显示两个容器（包含空状态） -->
+      <div v-if="mode === 'dual'" class="container-badges dual">
+        <div
+          v-for="(container, index) in containers"
+          :key="container.station"
+          class="container-badge"
+          :class="[
+            index === 0 ? 'primary' : 'secondary',
+            { empty: !container.code }
+          ]"
+        >
+          <span class="station-indicator">{{ container.station.replace('Tran', '') }}</span>
+          <span class="container-code">{{ container.code || '无' }}</span>
+        </div>
+      </div>
+    </div>
 
     <!-- 右侧控件组 -->
     <div class="header-right">
-      <!-- 站台切换器（始终显示） -->
+      <!-- 连接状态 -->
+      <div class="connection-status">
+        <div class="status-dot" :class="getStatusClass(connectionStatus)"></div>
+        <span class="status-text">{{ getStatusText(connectionStatus) }}</span>
+      </div>
+
+      <!-- 站台切换器 (位置仅次于时间) -->
       <div class="station-switcher">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="opacity: 0.8;">
           <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
@@ -25,12 +56,6 @@
             {{ station }}
           </option>
         </select>
-      </div>
-
-      <!-- 连接状态 -->
-      <div class="connection-status">
-        <div class="status-dot" :class="getStatusClass(connectionStatus)"></div>
-        <span class="status-text">{{ getStatusText(connectionStatus) }}</span>
       </div>
 
       <!-- 当前时间 -->
@@ -46,13 +71,22 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useWMSStore } from '../stores/wms'
 
+interface ContainerInfo {
+  station: string
+  code: string
+}
+
 interface Props {
   mode: 'single' | 'dual'
   currentStation?: string
+  containerCode?: string  // 单站台模式: 容器编码
+  containers?: ContainerInfo[]  // 双站台模式: 多个容器信息
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  currentStation: 'Tran3001'
+  currentStation: 'Tran3001',
+  containerCode: '',
+  containers: () => []
 })
 
 const emit = defineEmits<{
@@ -185,20 +219,118 @@ onUnmounted(() => {
   height: 10px;
 }
 
-/* 居中标题 - 压缩版 */
-.system-title {
+/* 居中区域: 容器信息 */
+.header-center {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  font-size: clamp(10px, 1.2vw, 12px);  /* 🔥 从18-24px压缩到10-12px */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 容器徽章 - 单站台 */
+.container-badge.single {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 212, 255, 0.1);
+  backdrop-filter: blur(10px);
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.container-badge.single:hover {
+  background: rgba(0, 212, 255, 0.15);
+  border-color: var(--primary-color, #00d4ff);
+  box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);
+}
+
+.container-badge.single svg {
+  width: 11px;
+  height: 11px;
+  color: var(--primary-color, #00d4ff);
+}
+
+.container-label {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.container-code {
+  font-size: 10px;
   font-weight: 600;
-  background: linear-gradient(135deg, var(--primary-color, #00d4ff), var(--secondary-color, #0099ff));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.02em;
-  margin: 0;
-  line-height: 1;  /* 确保垂直居中 */
+  color: var(--primary-color, #00d4ff);
+  font-family: 'Consolas', 'Monaco', monospace;
+  letter-spacing: 0.5px;
+}
+
+/* 容器徽章组 - 双站台 */
+.container-badges.dual {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.container-badge.primary {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(0, 150, 255, 0.15);
+  backdrop-filter: blur(10px);
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 150, 255, 0.4);
+}
+
+.container-badge.secondary {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(0, 230, 118, 0.15);
+  backdrop-filter: blur(10px);
+  padding: 3px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 230, 118, 0.4);
+}
+
+.station-indicator {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.container-badge.primary .station-indicator {
+  background: rgba(0, 150, 255, 0.3);
+  color: #0096ff;
+}
+
+.container-badge.secondary .station-indicator {
+  background: rgba(0, 230, 118, 0.3);
+  color: #00e676;
+}
+
+.container-badge.primary .container-code {
+  color: #0096ff;
+}
+
+.container-badge.secondary .container-code {
+  color: #00e676;
+}
+
+/* 空容器状态 */
+.container-badge.empty {
+  opacity: 0.5;
+  border-style: dashed;
+}
+
+.container-badge.empty .container-code {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
 }
 
 /* 右侧控件组 - 压缩版 */

@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master, main ]
     tags:
-      - 'v*'  # 推送 v 开头的 tag 时触发（如 v1.0.0）
+      - '*'  # 推送任何 tag 时触发
   pull_request:
     branches: [ master, main ]
   workflow_dispatch:  # 允许手动触发

@@ -377,7 +377,7 @@ onUnmounted(() => {
 
 /* 🔥 料号样式 */
 .goods-no {
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--primary-color);
   letter-spacing: 0.5px;
@@ -389,7 +389,7 @@ onUnmounted(() => {
 
 /* 🎯 紧凑模式：减小字号 */
 .goods-card[data-compact="true"] .goods-no {
-  font-size: 10px;
+  font-size: 13px;
 }
 
 /* 🔥 3D模型容器 - 占据整个卡片 */
@@ -468,7 +468,7 @@ onUnmounted(() => {
 
 /* 🔥 名称和规格样式 */
 .goods-name {
-  font-size: 11px;  /* 🔥 压缩: 13px→11px */
+  font-size: 15px;  /* 🔥 优化为1080p屏幕 */
   font-weight: bold;
   color: var(--on-surface-color);
   text-align: left;
@@ -484,11 +484,11 @@ onUnmounted(() => {
 
 /* 🎯 紧凑模式：减小字号 */
 .goods-card[data-compact="true"] .goods-name {
-  font-size: 10px;  /* 🔥 压缩: 11px→10px */
+  font-size: 13px;  /* 🔥 优化为1080p屏幕 */
 }
 
 .goods-spec {
-  font-size: 9px;  /* 🔥 压缩: 10px→9px */
+  font-size: 12px;  /* 🔥 优化为1080p屏幕 */
   color: var(--text-secondary);
   text-align: left;
   overflow: hidden;
@@ -501,12 +501,12 @@ onUnmounted(() => {
 
 /* 🎯 紧凑模式：保持可读性 */
 .goods-card[data-compact="true"] .goods-spec {
-  font-size: 8px;  /* 🔥 压缩: 9px→8px */
+  font-size: 11px;  /* 🔥 优化为1080p屏幕 */
 }
 
 /* 🔥 数量信息样式 */
 .goods-quantity {
-  font-size: 13px;  /* 🔥 压缩: 14px→13px */
+  font-size: 17px;  /* 🔥 优化为1080p屏幕 */
   font-weight: bold;
   color: #ffffff;
   letter-spacing: 0.5px;
@@ -515,18 +515,18 @@ onUnmounted(() => {
 
 /* 🎯 紧凑模式：减小字号 */
 .goods-card[data-compact="true"] .goods-quantity {
-  font-size: 11px;  /* 🔥 压缩: 12px→11px */
+  font-size: 15px;  /* 🔥 优化为1080p屏幕 */
 }
 
 .goods-unit {
-  font-size: 10px;  /* 🔥 压缩: 11px→10px */
+  font-size: 13px;  /* 🔥 优化为1080p屏幕 */
   color: #90a4ae;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 /* 🎯 紧凑模式：减小字号 */
 .goods-card[data-compact="true"] .goods-unit {
-  font-size: 9px;  /* 🔥 压缩: 10px→9px */
+  font-size: 12px;  /* 🔥 优化为1080p屏幕 */
 }
 
 /* 🔥 拣货数量样式 */
@@ -562,12 +562,12 @@ onUnmounted(() => {
 .pick-quantity {
   color: #ff5252;
   font-weight: bold;
-  font-size: 14px;
+  font-size: 18px;
 }
 
 /* 🎯 紧凑模式：减小拣货数量字号 */
 .goods-card[data-compact="true"] .pick-quantity {
-  font-size: 12px;
+  font-size: 16px;
 }
 
 /* 更多货物提示 */

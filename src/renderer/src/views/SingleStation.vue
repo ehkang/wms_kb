@@ -39,7 +39,7 @@
                     <div class="goods-info-overlay">
                       <!-- 顶部：料号 -->
                       <div class="overlay-top">
-                        <span class="goods-no">{{ goods.goodsNo || 'N/A' }}</span>
+                        <span class="goods-no" :ref="el => setGoodsNoRef(el, index)">{{ goods.goodsNo || 'N/A' }}</span>
                       </div>
 
                       <!-- 底部：名称、规格和数量信息 -->
@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
 import { useWMSStore } from '../stores/wms'
 import Model3DViewer from '../components/Model3DViewer.vue'
 
@@ -132,6 +132,14 @@ const gridContainerStyle = computed(() => {
 
 // 本地状态
 const starsContainer = ref<HTMLElement>()
+const goodsNoRefs = ref<(HTMLElement | null)[]>([])
+
+// 设置物料编码元素引用
+const setGoodsNoRef = (el: HTMLElement | null, index: number) => {
+  if (el) {
+    goodsNoRefs.value[index] = el
+  }
+}
 
 const generateStars = () => {
   if (!starsContainer.value) return
@@ -148,6 +156,73 @@ const generateStars = () => {
     starsContainer.value.appendChild(star)
   }
 }
+
+// 🔥 动态调整物料编码字体大小 - 使用黄金比例充分利用宽度
+const adjustGoodsNoFontSize = () => {
+  nextTick(() => {
+    goodsNoRefs.value.forEach((el) => {
+      if (!el) return
+
+      const container = el.parentElement
+      if (!container) return
+
+      const containerWidth = container.clientWidth - 12 // 减去padding
+      const text = el.textContent || ''
+      if (!text || containerWidth <= 0) return
+
+      const isCompact = el.closest('.goods-card')?.getAttribute('data-compact') === 'true'
+
+      // 🔥 目标：文本宽度占容器宽度的 82% (接近黄金比例)
+      const targetWidthRatio = 0.82
+      const targetWidth = containerWidth * targetWidthRatio
+
+      // 字体大小范围
+      const maxFontSize = isCompact ? 22 : 28
+      const minFontSize = isCompact ? 12 : 14
+
+      // 🔥 使用二分查找法精确计算字体大小
+      let low = minFontSize
+      let high = maxFontSize
+      let bestSize = minFontSize
+
+      // 创建临时canvas用于精确测量文本宽度
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      // 二分查找最佳字体大小
+      for (let i = 0; i < 15; i++) {  // 最多迭代15次
+        const mid = (low + high) / 2
+        ctx.font = `600 ${mid}px 'Inter', 'SF Pro Display', 'Segoe UI', 'Microsoft YaHei', sans-serif`
+        const textWidth = ctx.measureText(text).width
+
+        if (Math.abs(textWidth - targetWidth) < 2) {  // 误差在2px内即可
+          bestSize = mid
+          break
+        }
+
+        if (textWidth < targetWidth) {
+          low = mid
+          bestSize = mid  // 保存当前最佳值
+        } else {
+          high = mid
+        }
+      }
+
+      el.style.fontSize = `${bestSize}px`
+    })
+  })
+}
+
+// 监听货物数据变化，重新调整字体
+watch(() => localGoods.value, () => {
+  adjustGoodsNoFontSize()
+}, { deep: true })
+
+// 监听网格行数变化（影响紧凑模式）
+watch(() => gridRows.value, () => {
+  adjustGoodsNoFontSize()
+})
 
 // F5 刷新功能处理器
 const handleF5Refresh = (e: KeyboardEvent) => {
@@ -166,11 +241,18 @@ onMounted(() => {
   // 注册 F5 刷新事件
   document.addEventListener('keydown', handleF5Refresh)
 
+  // 初始调整字体大小
+  adjustGoodsNoFontSize()
+
+  // 监听窗口大小变化
+  window.addEventListener('resize', adjustGoodsNoFontSize)
+
 })
 
 // ✅ 清理事件监听器，防止内存泄漏
 onUnmounted(() => {
   document.removeEventListener('keydown', handleF5Refresh)
+  window.removeEventListener('resize', adjustGoodsNoFontSize)
 })
 </script>
 
@@ -375,21 +457,19 @@ onUnmounted(() => {
   transform: scaleX(1);
 }
 
-/* 🔥 料号样式 */
+/* 🔥 料号样式 - 动态字体缩放（由JS控制） */
 .goods-no {
-  font-size: 15px;
+  font-size: 15px;  /* 默认字体大小，会被JS动态调整 */
   font-weight: 600;
   color: var(--primary-color);
   letter-spacing: 0.5px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* 🎯 紧凑模式：减小字号 */
-.goods-card[data-compact="true"] .goods-no {
-  font-size: 13px;
+  overflow: visible;  /* 允许显示完整文本 */
+  width: 100%;
+  display: inline-block;
+  text-align: center;
+  transition: font-size 0.2s ease;  /* 平滑过渡 */
 }
 
 /* 🔥 3D模型容器 - 占据整个卡片 */

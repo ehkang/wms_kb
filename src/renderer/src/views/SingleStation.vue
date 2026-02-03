@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch, nextTick, type ComponentPublicInstance } from 'vue'
 import { useWMSStore } from '../stores/wms'
 import Model3DViewer from '../components/Model3DViewer.vue'
 
@@ -135,8 +135,8 @@ const starsContainer = ref<HTMLElement>()
 const goodsNoRefs = ref<(HTMLElement | null)[]>([])
 
 // 设置物料编码元素引用
-const setGoodsNoRef = (el: HTMLElement | null, index: number) => {
-  if (el) {
+const setGoodsNoRef = (el: Element | ComponentPublicInstance | null, index: number) => {
+  if (el && el instanceof HTMLElement) {
     goodsNoRefs.value[index] = el
   }
 }

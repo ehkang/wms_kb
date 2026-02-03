@@ -221,7 +221,7 @@ class Model3DCache {
    * 从服务器加载几何体
    */
   private async loadGeometryFromServer(goodsNo: string): Promise<THREE.BufferGeometry> {
-    const modelUrl = `${API_CONFIG.NX_ONE_BASE_URL}/technical/drawing/model3d/download?code=${encodeURIComponent(goodsNo)}&autoVersion=true`
+    const modelUrl = `${API_CONFIG.NX_ONE_BASE_URL}/technical/drawing/model3d?code=${encodeURIComponent(goodsNo)}&autoVersion=true`
 
     const response = await fetch(modelUrl, {
       method: 'GET',

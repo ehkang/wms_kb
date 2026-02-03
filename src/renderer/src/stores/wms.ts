@@ -637,10 +637,13 @@ class WMSStore {
         const goods = (res.data || []) as Goods[]
 
         // 🎯 关键：更新该站台的独立状态
-        stationState.localGoods = goods.map(item => ({
-          ...item,
-          pickQuantity: pickTaskMap[item.goodsNo] || 0
-        }))
+        stationState.localGoods = goods.map(item => {
+          const pickQty = pickTaskMap[item.goodsNo] || 0
+          return {
+            ...item,
+            pickQuantity: pickQty
+          }
+        })
         stationState.pickTaskMap = pickTaskMap
         stationState.errorMessage = ''
       } else {
@@ -684,11 +687,15 @@ class WMSStore {
 
           if (res.errCode === 0) {
             const goods = (res.data || []) as Goods[]
+
             // 🎯 关键：更新该站台的独立状态
-            stationState.localGoods = goods.map(item => ({
-              ...item,
-              pickQuantity: pickTaskMap[item.goodsNo] || 0
-            }))
+            stationState.localGoods = goods.map(item => {
+              const pickQty = pickTaskMap[item.goodsNo] || 0
+              return {
+                ...item,
+                pickQuantity: pickQty
+              }
+            })
             stationState.pickTaskMap = pickTaskMap
           }
         } catch (error) {

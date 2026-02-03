@@ -520,6 +520,7 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: flex-end;
   gap: 6px;  /* 🔥 压缩gap: 8px→6px */
+  overflow: visible;  /* 🔥 确保拣货数量不被裁剪 */
 }
 
 .goods-card[data-compact="true"] .overlay-bottom {
@@ -529,12 +530,13 @@ onUnmounted(() => {
 
 /* 左侧：名称和规格 */
 .goods-info-left {
-  flex: 1;
+  flex: 1 1 auto;  /* 🔥 允许收缩以给右侧留空间 */
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   align-items: flex-start;
   min-width: 0;  /* 允许文字省略 */
+  max-width: 60%;  /* 🔥 限制最大宽度，确保右侧有空间 */
 }
 
 /* 右侧：数量信息 */
@@ -544,6 +546,8 @@ onUnmounted(() => {
   align-items: baseline;
   gap: 4px;
   flex-shrink: 0;  /* 数量信息不压缩 */
+  flex-wrap: nowrap;  /* 🔥 不换行，保持一行显示 */
+  white-space: nowrap;  /* 🔥 确保内容不换行 */
 }
 
 /* 🔥 名称和规格样式 */
